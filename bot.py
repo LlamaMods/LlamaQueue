@@ -1,78 +1,93 @@
 from registration_manager import RegistrationManager
 from queue_manager import QueueManager
+from youtube_manager import YouTubeManager
+
 
 registrations = RegistrationManager()
 queue = QueueManager()
+youtube = YouTubeManager()
+
 
 print("🦙 Llama Queue Bot")
-print("Type messages like:")
-print("RyanStone: !reg LlamaRyan")
-print("RyanStone: !join")
-print("RyanStone: !leave")
-print("RyanStone: !position")
+print("Connecting to YouTube...")
 print()
 
-while True:
+youtube.connect()
 
-    message = input("> ").strip()
+if youtube.is_live():
 
-    if ":" not in message:
-        continue
+    print("🟢 Active livestream detected.")
+    print()
 
-    youtube_name, command = message.split(":", 1)
+else:
 
-    youtube_name = youtube_name.strip()
-    command = command.strip()
+    print("🟡 No active livestream detected.")
+    print()
+    exit()
 
-    # --------------------------
+def handle_message(author, message):
+
+    message = message.strip()
+
+    print(f"{author}: {message}")
+
+    # ------------------------------------
     # !reg
-    # --------------------------
+    # ------------------------------------
 
-    if command.startswith("!reg"):
+    if message.startswith("!reg"):
 
-        parts = command.split(maxsplit=1)
+        parts = message.split(maxsplit=1)
 
         if len(parts) == 1:
 
-            trainer = registrations.get_trainer(youtube_name)
+            trainer = registrations.get_trainer(author)
 
             if trainer:
-                print(f"🦙 Registered Trainer: {trainer}")
+
+                youtube.send_message(
+                    f"@{author} Your registered trainer is {trainer}"
+                )
+
             else:
-                print("❌ You are not registered.")
-                print("Usage: !reg YourTrainerName")
 
-        else:
+                youtube.send_message(
+                    f"@{author} You are not registered. Use !reg TrainerName"
+                )
 
-            trainer_name = parts[1].strip()
+            return
 
-            registrations.register(
-                youtube_name,
-                trainer_name
-            )
+        trainer_name = parts[1].strip()
 
-            print(f"✅ Registered!")
-            print(f"YouTube: {youtube_name}")
-            print(f"Trainer: {trainer_name}")
+        registrations.register(
+            author,
+            trainer_name
+        )
 
-        continue
+        youtube.send_message(
+            f"@{author} Registration complete! Trainer: {trainer_name}"
+        )
 
-    # --------------------------
+        return
+
+    # ------------------------------------
     # !join
-    # --------------------------
+    # ------------------------------------
 
-    if command == "!join":
+    if message == "!join":
 
-        trainer = registrations.get_trainer(youtube_name)
+        trainer = registrations.get_trainer(author)
 
         if trainer is None:
 
-            print("❌ You're not registered.")
-            print("Use: !reg YourTrainerName")
-            continue
+            youtube.send_message(
+                f"@{author} Please register first using !reg TrainerName"
+            )
+
+            return
 
         success = queue.join(
-            youtube_name,
+            author,
             trainer
         )
 
@@ -82,51 +97,59 @@ while True:
 
             position = len(players)
 
-            lobby = ((position - 1) // queue.get_lobby_size()) + 1
+            lobby = (
+                (position - 1)
+                // queue.get_lobby_size()
+            ) + 1
 
-            wait = queue.estimated_wait(position - 1)
+            wait = queue.estimated_wait(
+                position - 1
+            )
 
-            print()
-            print("🦙 Joined Queue!")
-            print(f"Position: #{position}")
-            print(f"Lobby: {lobby}")
-            print(f"Estimated Start: {wait}")
-            print()
+            youtube.send_message(
+                f"@{author} Joined! Position #{position} | Lobby {lobby} | Est. {wait}"
+            )
 
         else:
 
             if not queue.is_open():
-                print("🔴 Queue is currently CLOSED.")
+
+                youtube.send_message(
+                    f"@{author} Queue is currently CLOSED."
+                )
+
             else:
-                print("⚠️ You're already in the queue.")
 
-        continue
+                youtube.send_message(
+                    f"@{author} You're already in the queue."
+                )
 
-    # --------------------------
+        return
+            # ------------------------------------
     # !leave
-    # --------------------------
+    # ------------------------------------
 
-    if command == "!leave":
+    if message == "!leave":
 
-        queue.remove(youtube_name)
+        queue.remove(author)
 
-        print("👋 You left the queue.")
+        youtube.send_message(
+            f"@{author} You have left the queue."
+        )
 
-        continue
+        return
 
-    # --------------------------
+    # ------------------------------------
     # !position
-    # --------------------------
+    # ------------------------------------
 
-    if command == "!position":
+    if message == "!position":
 
         players = queue.get_players()
 
-        found = False
-
         for index, player in enumerate(players):
 
-            if player["youtube"].lower() == youtube_name.lower():
+            if player["youtube"].lower() == author.lower():
 
                 lobby = (
                     index // queue.get_lobby_size()
@@ -134,19 +157,24 @@ while True:
 
                 wait = queue.estimated_wait(index)
 
-                print()
-                print(f"🦙 {youtube_name}")
-                print(f"Position: #{index + 1}")
-                print(f"Lobby: {lobby}")
-                print(f"Estimated Start: {wait}")
-                print()
+                youtube.send_message(
+                    f"@{author} Position #{index + 1} | Lobby {lobby} | Est. {wait}"
+                )
 
-                found = True
-                break
+                return
 
-        if not found:
-            print("❌ You're not currently in the queue.")
+        youtube.send_message(
+            f"@{author} You are not currently in the queue."
+        )
 
-        continue
+        return
 
-    print("❓ Unknown command.")
+    # Ignore everything else for now.
+    return
+
+
+print()
+print("🦙 Listening for YouTube chat...")
+print()
+
+youtube.listen(handle_message)
