@@ -1,5 +1,51 @@
 {
-    "players": [],
+    "players": [
+        {
+            "youtube": "Ryan",
+            "trainer": "LlamaRyan",
+            "ready": false
+        },
+        {
+            "youtube": "Pocket",
+            "trainer": "PocketJon",
+            "ready": false
+        },
+        {
+            "youtube": "Rockstar",
+            "trainer": "LoisRockstar",
+            "ready": false
+        },
+        {
+            "youtube": "BadLuck",
+            "trainer": "BadLuck",
+            "ready": false
+        },
+        {
+            "youtube": "AirBrake",
+            "trainer": "AirBrake",
+            "ready": false
+        },
+        {
+            "youtube": "Southern",
+            "trainer": "Southern",
+            "ready": false
+        },
+        {
+            "youtube": "Roman",
+            "trainer": "Roman",
+            "ready": false
+        },
+        {
+            "youtube": "Steve",
+            "trainer": "Steve",
+            "ready": false
+        },
+        {
+            "youtube": "Sarah",
+            "trainer": "Sarah",
+            "ready": false
+        }
+    ],
     "lobby_size": 5,
-    "queue_open": false
+    "queue_open": true
 }

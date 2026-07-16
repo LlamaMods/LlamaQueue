@@ -2,7 +2,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
 from fastapi import FastAPI, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import (
+    HTMLResponse,
+    RedirectResponse,
+    JSONResponse,
+)
 
 from lobby_history_manager import LobbyHistoryManager
 from queue_manager import QueueManager
@@ -80,7 +84,7 @@ def home(request: Request):
             "status": status,
             "party_size": creator_settings["party_size"],
             "current": current,
-            "waiting": waiting,
+            "waiting": len(waiting),
             "history": history_items,
             "trainer_names": trainer_names,
             "next_lobby": next_lobby,
@@ -176,3 +180,56 @@ def decrease_party():
         settings.set("party_size", current - 1)
 
     return RedirectResponse("/", status_code=303)
+
+
+# -------------------------
+# API
+# -------------------------
+
+@app.get("/api/dashboard")
+def api_dashboard():
+
+    creator_settings = settings.get_all()
+
+    # Keep QueueManager in sync
+    queue.set_lobby_size(
+        creator_settings["party_size"]
+    )
+
+    current = queue.current_lobby()
+    waiting = queue.waiting_players()
+
+    next_party = waiting[
+        :creator_settings["party_size"]
+    ]
+
+    remaining_waiting = max(
+        0,
+        len(waiting) - len(next_party)
+    )
+
+    trainer_names = [
+        player["trainer"]
+        for player in current
+        if player["trainer"]
+    ]
+
+    return JSONResponse({
+
+        "status": queue.is_open(),
+
+        "party_size": creator_settings["party_size"],
+
+        "current": current,
+
+        "next": next_party,
+
+        "waiting": len(waiting),
+
+        "remaining_waiting": remaining_waiting,
+
+        "trainer_names": trainer_names,
+
+        "history": history.get_history()
+
+    })

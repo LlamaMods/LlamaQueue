@@ -16,7 +16,6 @@
     <div class="dashboard-grid">
 
         <!-- LEFT COLUMN -->
-
         <div class="side-column">
 
             <div class="card">
@@ -25,7 +24,9 @@
 
                 <div class="status-card">
                     <span>Queue Status</span>
-                    <strong>{{ status }}</strong>
+                    <strong id="queue-status">
+                        {{ status }}
+                    </strong>
                 </div>
 
                 <div class="status-card">
@@ -34,27 +35,23 @@
 
                     <div class="party-size-controls">
 
-                        <form action="/party/decrease" method="post">
+                        <button
+                            type="button"
+                            class="party-button"
+                            onclick="decreaseParty()">
+                            −
+                        </button>
 
-                            <button
-                                type="submit"
-                                class="party-button">
-                                −
-                            </button>
+                        <strong id="party-size">
+                            {{ party_size }}
+                        </strong>
 
-                        </form>
-
-                        <strong>{{ party_size }}</strong>
-
-                        <form action="/party/increase" method="post">
-
-                            <button
-                                type="submit"
-                                class="party-button">
-                                +
-                            </button>
-
-                        </form>
+                        <button
+                            type="button"
+                            class="party-button"
+                            onclick="increaseParty()">
+                            +
+                        </button>
 
                     </div>
 
@@ -63,19 +60,15 @@
                 <div class="buttons">
 
                     <form action="/open" method="post">
-
                         <button class="success">
                             🟢 Open Queue
                         </button>
-
                     </form>
 
                     <form action="/close" method="post">
-
                         <button class="danger">
                             🔴 Close Queue
                         </button>
-
                     </form>
 
                 </div>
@@ -85,6 +78,8 @@
             <div class="card">
 
                 <h2>📚 Lobby History</h2>
+
+                <div id="history-container">
 
                 {% if history %}
 
@@ -103,9 +98,7 @@
                             <br>
 
                             <small>
-
                                 {{ player.trainer }}
-
                             </small>
 
                         </p>
@@ -122,6 +115,8 @@
 
                 {% endif %}
 
+                </div>
+
             </div>
 
         </div>
@@ -134,15 +129,13 @@
 
                 <h2>🎮 Current Party</h2>
 
-                {% if current %}
-
-                <table class="mission-table">
+                <table
+                    class="mission-table"
+                    id="current-party-table">
 
                     <tr>
-
                         <th>YouTube</th>
                         <th>Player</th>
-
                     </tr>
 
                     {% for player in current %}
@@ -152,9 +145,7 @@
                         <td>{{ player.youtube }}</td>
 
                         <td>
-
                             {{ player.trainer if player.trainer else "Not Set" }}
-
                         </td>
 
                     </tr>
@@ -163,11 +154,15 @@
 
                 </table>
 
-                {% else %}
+                <p
+                    id="current-empty"
+                    {% if current %}
+                    style="display:none"
+                    {% endif %}>
 
-                    <p>No players currently in the party.</p>
+                    No players currently in the party.
 
-                {% endif %}
+                </p>
 
                 <div class="buttons">
 
@@ -182,9 +177,7 @@
                     <form action="/complete" method="post">
 
                         <button>
-
                             🚀 Launch Party
-
                         </button>
 
                     </form>
@@ -197,27 +190,22 @@
 
                 <h2>⏭ Next Party</h2>
 
-                {% if next_lobby %}
-
-                <table class="mission-table">
+                <table
+                    class="mission-table"
+                    id="next-party-table">
 
                     <tr>
-
                         <th>YouTube</th>
                         <th>Player</th>
-
                     </tr>
-
-                    {% for player in next_lobby %}
+                                        {% for player in next_lobby %}
 
                     <tr>
 
                         <td>{{ player.youtube }}</td>
 
                         <td>
-
                             {{ player.trainer if player.trainer else "Not Set" }}
-
                         </td>
 
                     </tr>
@@ -226,21 +214,25 @@
 
                 </table>
 
-                {% if remaining_waiting > 0 %}
+                <p
+                    id="next-empty"
+                    {% if next_lobby %}
+                    style="display:none"
+                    {% endif %}>
 
-                <p class="queue-summary">
-
-                    {{ remaining_waiting }} more player(s) waiting...
+                    The queue is empty.
 
                 </p>
 
-                {% endif %}
+                <p
+                    class="queue-summary"
+                    id="waiting-summary">
 
-                {% else %}
+                    {% if remaining_waiting > 0 %}
+                        {{ remaining_waiting }} more player(s) waiting...
+                    {% endif %}
 
-                    <p>The queue is empty.</p>
-
-                {% endif %}
+                </p>
 
             </div>
 
@@ -269,6 +261,171 @@ function copyLobby(){
     alert("Player names copied!");
 
 }
+
+async function refreshDashboard(){
+
+    const response =
+        await fetch("/api/dashboard");
+
+    const data =
+        await response.json();
+
+    document.getElementById(
+        "party-size"
+    ).textContent = data.party_size;
+
+    document.getElementById(
+        "queue-status"
+    ).textContent =
+        data.status
+        ? "🟢 OPEN"
+        : "🔴 CLOSED";
+
+    renderCurrentParty(
+        data.current
+    );
+
+    renderNextParty(
+        data.next,
+        data.remaining_waiting
+    );
+
+}
+
+function renderCurrentParty(players){
+
+    const table =
+        document.getElementById(
+            "current-party-table"
+        );
+
+    const empty =
+        document.getElementById(
+            "current-empty"
+        );
+
+    table.innerHTML = `
+        <tr>
+            <th>YouTube</th>
+            <th>Player</th>
+        </tr>
+    `;
+
+    if(players.length === 0){
+
+        table.style.display = "none";
+        empty.style.display = "block";
+
+        return;
+
+    }
+
+    table.style.display = "table";
+    empty.style.display = "none";
+
+    players.forEach(player=>{
+
+        table.innerHTML += `
+            <tr>
+                <td>${player.youtube}</td>
+                <td>${player.trainer || "Not Set"}</td>
+            </tr>
+        `;
+
+    });
+
+}
+function renderNextParty(players, remaining){
+
+    const table =
+        document.getElementById(
+            "next-party-table"
+        );
+
+    const empty =
+        document.getElementById(
+            "next-empty"
+        );
+
+    const summary =
+        document.getElementById(
+            "waiting-summary"
+        );
+
+    table.innerHTML = `
+        <tr>
+            <th>YouTube</th>
+            <th>Player</th>
+        </tr>
+    `;
+
+    if(players.length === 0){
+
+    table.style.display = "none";
+    empty.style.display = "block";
+
+}
+else{
+
+    table.style.display = "table";
+    empty.style.display = "none";
+
+    players.forEach(player=>{
+
+        table.innerHTML += `
+            <tr>
+                <td>${player.youtube}</td>
+                <td>${player.trainer || "Not Set"}</td>
+            </tr>
+        `;
+
+    });
+
+}
+
+    summary.textContent =
+        remaining > 0
+        ? `${remaining} more player(s) waiting...`
+        : "";
+
+}
+
+async function increaseParty(){
+
+    await fetch(
+        "/party/increase",
+        {
+            method: "POST"
+        }
+    );
+
+    await refreshDashboard();
+
+}
+
+async function decreaseParty(){
+
+    await fetch(
+        "/party/decrease",
+        {
+            method: "POST"
+        }
+    );
+
+    await refreshDashboard();
+
+}
+
+window.onload = () => {
+
+    refreshDashboard();
+
+    setInterval(
+        refreshDashboard,
+        3000
+    );
+
+};
 
 </script>
 
