@@ -1,1 +1,12 @@
-[]
+[
+    {
+        "time": "04:38 PM",
+        "players": [
+            {
+                "youtube": "Sarah",
+                "trainer": "Sarah",
+                "ready": false
+            }
+        ]
+    }
+]

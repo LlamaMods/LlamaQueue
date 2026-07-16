@@ -334,28 +334,61 @@ h1{
 .status-card{
 
     display:flex;
+
     justify-content:space-between;
+
     align-items:center;
 
     padding:14px 18px;
+
     margin-bottom:12px;
 
     border-radius:10px;
 
     background:#252D36;
+
     border:1px solid #303944;
 
 }
 
 .status-card span{
+
     color:#BAC2CA;
+
     font-size:14px;
+
 }
 
 .status-card strong{
+
     color:#7BE495;
+
     font-size:20px;
+
     font-weight:700;
+
+}
+
+/* Queue Lobby Status */
+
+.lobby-status{
+
+    display:flex;
+
+    flex-direction:column;
+
+    align-items:flex-start;
+
+    gap:10px;
+
+}
+
+.lobby-status strong{
+
+    align-self:flex-end;
+
+    font-size:22px;
+
 }
 
 /* ==========================================================
@@ -762,6 +795,65 @@ hr{
 
 }
 /* ==========================================================
+   Moderator Action Buttons
+   ========================================================== */
+
+.action-buttons{
+
+    display:flex;
+
+    gap:6px;
+
+    justify-content:center;
+
+    align-items:center;
+
+}
+
+.action-buttons form{
+
+    flex:none;
+
+    margin:0;
+
+}
+
+.action-buttons button{
+
+    width:38px;
+
+    height:38px;
+
+    min-height:38px;
+
+    padding:0;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    border-radius:8px;
+
+    font-size:16px;
+
+    font-weight:700;
+
+}
+
+.action-buttons .danger{
+
+    background:#D64545;
+
+}
+
+.action-buttons .success{
+
+    background:#2FBF5B;
+
+}
+/* ==========================================================
    Mobile
    ========================================================== */
 
@@ -866,5 +958,121 @@ hr{
         width:100%;
 
     }
+
+/* ==========================================================
+   Launch Button
+   ========================================================== */
+
+.launch-form{
+
+    display:flex;
+
+    justify-content:center;
+
+    margin-top:18px;
+
+}
+
+.launch-button{
+
+    width:auto !important;
+
+    min-width:180px;
+
+    padding:12px 24px;
+
+    flex:none;
+
+}
+/* ==========================================================
+   Lobby Progress Bar
+   ========================================================== */
+
+.progress-bar{
+
+    width:100%;
+
+    height:12px;
+
+    margin-top:12px;
+
+    background:#252D36;
+
+    border:1px solid #303944;
+
+    border-radius:999px;
+
+    overflow:hidden;
+
+}
+
+.progress-fill{
+
+    height:100%;
+
+    background:linear-gradient(
+        90deg,
+        #33C759,
+        #7BE495
+    );
+
+    border-radius:999px;
+
+    transition:width .4s ease;
+
+}
+
+.ready-text{
+
+    margin-top:12px;
+
+    color:#7BE495;
+
+    font-weight:700;
+
+    text-align:center;
+
+}
+
+.waiting-text{
+
+    margin-top:12px;
+
+    color:#F7C948;
+
+    font-weight:700;
+
+    text-align:center;
+
+}
+/* ==========================================================
+   Next Player Badge
+   ========================================================== */
+
+.next-badge{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    padding:4px 10px;
+
+    border-radius:999px;
+
+    background:#33C759;
+
+    color:#FFFFFF;
+
+    font-size:12px;
+
+    font-weight:700;
+
+    letter-spacing:.5px;
+
+    text-transform:uppercase;
+
+    box-shadow:0 0 10px rgba(51,199,89,.35);
 
 }

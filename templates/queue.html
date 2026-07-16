@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container">
+
+    <h1>👥 Queue Management</h1>
+
+    <div class="dashboard-grid">
+
+        <!-- LEFT COLUMN -->
+
+        <div class="side-column">
+
+            <div class="card">
+
+                <h2>🟢 Current Lobby</h2>
+
+                <div class="status-card lobby-status">
+
+                    <span>Lobby Status</span>
+
+                    <strong>{{ current_count }} / {{ party_size }} Players</strong>
+
+                    <div class="progress-bar">
+
+                        <div
+                            class="progress-fill"
+                            style="width: {{ lobby_percent }}%;">
+
+                        </div>
+
+                    </div>
+
+                    {% if lobby_ready %}
+
+                        <p class="ready-text">
+                            ✅ Ready to Launch
+                        </p>
+
+                    {% else %}
+
+                        <p class="waiting-text">
+                            ⏳ Waiting for Players
+                        </p>
+
+                    {% endif %}
+
+                </div>
+
+                {% if current %}
+
+                <table class="mission-table">
+
+                    <tr>
+
+                        <th>YouTube</th>
+
+                        <th>Trainer</th>
+
+                    </tr>
+
+                    {% for player in current %}
+
+                    <tr>
+
+                        <td>{{ player.youtube }}</td>
+
+                        <td>{{ player.trainer if player.trainer else "Not Set" }}</td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </table>
+
+                {% else %}
+
+                <p>No players currently in the lobby.</p>
+
+                {% endif %}
+
+                <form
+                    action="/complete"
+                    method="post"
+                    class="launch-form">
+
+                    <button
+                        class="success launch-button">
+
+                        🚀 Launch Party
+
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+
+        <div class="main-column">
+
+            <div class="card">
+
+                <h2>👥 Waiting Queue</h2>
+
+                <div class="status-card">
+
+                    <span>Players Waiting</span>
+
+                    <strong>{{ queue_size }}</strong>
+
+                </div>
+
+                <div class="status-card">
+
+                    <span>Estimated Wait</span>
+
+                    <strong>{{ estimated_wait }} min</strong>
+
+                </div>
+
+                {% if waiting %}
+
+                <table class="mission-table">
+
+                    <tr>
+
+                        <th>#</th>
+
+                        <th>YouTube</th>
+
+                        <th>Trainer</th>
+
+                        <th>Waiting</th>
+
+                        <th>Actions</th>
+
+                    </tr>
+
+                    {% for player in waiting %}
+
+                    <tr class="{% if loop.first %}next-player{% endif %}">
+
+                        <td>
+
+                            {% if loop.first %}
+
+                                 <span class="next-badge">NEXT</span>
+
+                            {% else %}
+
+                                {{ loop.index }}
+
+                            {% endif %}
+               
+                        </td>
+
+                        <td>
+
+                              {% if loop.first %}
+                                
+                                 <strong>{{ player.youtube }}</strong>
+
+                              {% else %}
+                                  
+                                 {{ player.youtube }}
+
+                              {% endif %}
+
+                        </td>
+
+                        <td>{{ player.trainer if player.trainer else "Not Set" }}</td>
+
+                        <td>
+
+                            <strong>{{ player.wait_time }}</strong>
+
+                        </td>
+
+                        <td>
+
+                            <div class="action-buttons">
+
+                                <form action="/remove" method="post">
+
+                                    <input
+                                        type="hidden"
+                                        name="name"
+                                        value="{{ player.youtube }}">
+
+                                    <input
+                                        type="hidden"
+                                        name="next"
+                                        value="/queue">
+
+                                    <button
+                                        class="danger"
+                                        title="Remove">
+
+                                        ❌
+
+                                    </button>
+
+                                </form>
+
+                                <form action="/move/up" method="post">
+
+                                    <input
+                                        type="hidden"
+                                        name="name"
+                                        value="{{ player.youtube }}">
+
+                                    <input
+                                        type="hidden"
+                                        name="next"
+                                        value="/queue">
+
+                                    <button
+                                        title="Move Up">
+
+                                        ▲
+
+                                    </button>
+
+                                </form>
+
+                                <form action="/move/down" method="post">
+
+                                    <input
+                                        type="hidden"
+                                        name="name"
+                                        value="{{ player.youtube }}">
+
+                                    <input
+                                        type="hidden"
+                                        name="next"
+                                        value="/queue">
+
+                                    <button
+                                        title="Move Down">
+
+                                        ▼
+
+                                    </button>
+
+                                </form>
+
+                                <form action="/move/front" method="post">
+
+                                    <input
+                                        type="hidden"
+                                        name="name"
+                                        value="{{ player.youtube }}">
+
+                                    <input
+                                        type="hidden"
+                                        name="next"
+                                        value="/queue">
+
+                                    <button
+                                        class="success"
+                                        title="Priority">
+
+                                        ⭐
+
+                                    </button>
+
+                                </form>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </table>
+
+                {% else %}
+
+                <p>The waiting queue is empty.</p>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

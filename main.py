@@ -70,7 +70,9 @@ def home(request: Request):
     )
 
     current = queue.current_lobby()
+
     waiting = queue.waiting_players()
+
     history_items = history.get_history()
 
     next_lobby = waiting[
@@ -138,9 +140,63 @@ def join(youtube: str = Form(...)):
 
 
 @app.post("/remove")
-def remove(name: str = Form(...)):
+def remove(
+    name: str = Form(...),
+    next: str = Form("/")
+):
+
     queue.remove(name)
-    return RedirectResponse("/", status_code=303)
+
+    return RedirectResponse(
+        next,
+        status_code=303
+    )
+
+
+# -------------------------
+# Queue Moderator Actions
+# -------------------------
+
+@app.post("/move/up")
+def move_up(
+    name: str = Form(...),
+    next: str = Form("/")
+):
+
+    queue.move_up(name)
+
+    return RedirectResponse(
+        next,
+        status_code=303
+    )
+
+
+@app.post("/move/down")
+def move_down(
+    name: str = Form(...),
+    next: str = Form("/")
+):
+
+    queue.move_down(name)
+
+    return RedirectResponse(
+        next,
+        status_code=303
+    )
+
+
+@app.post("/move/front")
+def move_front(
+    name: str = Form(...),
+    next: str = Form("/")
+):
+
+    queue.move_to_front(name)
+
+    return RedirectResponse(
+        next,
+        status_code=303
+    )
 
 
 # -------------------------
@@ -198,6 +254,66 @@ def decrease_party():
         settings.set("party_size", current - 1)
 
     return RedirectResponse("/", status_code=303)
+
+# -------------------------
+# Queue
+# -------------------------
+
+@app.get("/queue")
+def queue_page(request: Request):
+
+    creator_settings = settings.get_all()
+
+    queue.set_lobby_size(
+        creator_settings["party_size"]
+    )
+
+    current = queue.current_lobby()
+
+    waiting = queue.waiting_players()
+
+    for player in waiting:
+
+        player["wait_time"] = queue.waiting_time(player)
+
+    queue_size = len(waiting)
+
+    estimated_wait = (
+        queue_size *
+        creator_settings["estimated_match_length"]
+    )
+
+    current_count = len(current)
+
+    lobby_percent = int(
+        (current_count / creator_settings["party_size"]) * 100
+    ) if creator_settings["party_size"] else 0
+
+    lobby_ready = (
+        current_count >= creator_settings["party_size"]
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="queue.html",
+        context={
+            "title": "Queue",
+
+            "current": current,
+            "current_count": current_count,
+
+            "waiting": waiting,
+
+            "queue_size": queue_size,
+
+            "estimated_wait": estimated_wait,
+
+            "party_size": creator_settings["party_size"],
+
+            "lobby_percent": lobby_percent,
+            "lobby_ready": lobby_ready
+        }
+    )
 
 # -------------------------
 # Settings
