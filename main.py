@@ -2,11 +2,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
 from fastapi import FastAPI, Form
-from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
+
 from lobby_history_manager import LobbyHistoryManager
 from queue_manager import QueueManager
 from registration_manager import RegistrationManager
 from profile_manager import ProfileManager
+from settings_manager import SettingsManager
 
 app = FastAPI()
 
@@ -22,9 +24,13 @@ queue = QueueManager()
 registrations = RegistrationManager()
 history = LobbyHistoryManager()
 profile = ProfileManager()
+settings = SettingsManager()
 
 
+# -------------------------
 # Demo Players
+# -------------------------
+
 queue.join("Ryan", "LlamaRyan")
 queue.join("Pocket", "PocketJon")
 queue.join("Rockstar", "LoisRockstar")
@@ -36,15 +42,30 @@ queue.join("Steve", "Steve")
 queue.join("Sarah", "Sarah")
 
 
+# -------------------------
+# Dashboard
+# -------------------------
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 def home(request: Request):
 
     status = "🟢 OPEN" if queue.is_open() else "🔴 CLOSED"
 
+    creator_settings = settings.get_all()
+
+    # Keep QueueManager in sync with the selected party size
+    queue.set_lobby_size(creator_settings["party_size"])
+
     current = queue.current_lobby()
     waiting = queue.waiting_players()
     history_items = history.get_history()
+
+    next_lobby = waiting[:creator_settings["party_size"]]
+
+    remaining_waiting = max(
+        0,
+        len(waiting) - len(next_lobby)
+    )
 
     trainer_names = [
         player["trainer"]
@@ -53,19 +74,24 @@ def home(request: Request):
     ]
 
     return templates.TemplateResponse(
-    request=request,
-    name="dashboard.html",
-    context={
-    "status": status,
-    "lobby_size": queue.get_lobby_size(),
-    "current": current,
-    "waiting": waiting,
-    "history": history_items,
-    "trainer_names": trainer_names,
-    "profile": profile.load(),
-}
-)
+        request=request,
+        name="dashboard.html",
+        context={
+            "status": status,
+            "party_size": creator_settings["party_size"],
+            "current": current,
+            "waiting": waiting,
+            "history": history_items,
+            "trainer_names": trainer_names,
+            "next_lobby": next_lobby,
+            "remaining_waiting": remaining_waiting,
+        },
+    )
 
+
+# -------------------------
+# Registration
+# -------------------------
 
 @app.post("/register")
 def register(
@@ -95,6 +121,10 @@ def remove(name: str = Form(...)):
     return RedirectResponse("/", status_code=303)
 
 
+# -------------------------
+# Queue Controls
+# -------------------------
+
 @app.post("/complete")
 def complete():
 
@@ -105,17 +135,6 @@ def complete():
 
     queue.complete_lobby()
 
-    return RedirectResponse("/", status_code=303)
-
-@app.post("/lobby/5")
-def lobby5():
-    queue.set_lobby_size(5)
-    return RedirectResponse("/", status_code=303)
-
-
-@app.post("/lobby/10")
-def lobby10():
-    queue.set_lobby_size(10)
     return RedirectResponse("/", status_code=303)
 
 
@@ -130,3 +149,30 @@ def close_queue():
     queue.close_queue()
     return RedirectResponse("/", status_code=303)
 
+
+# -------------------------
+# Party Size Controls
+# -------------------------
+
+@app.post("/party/increase")
+def increase_party():
+
+    current = settings.get("party_size")
+    maximum = settings.get("max_party_size")
+
+    if current < maximum:
+        settings.set("party_size", current + 1)
+
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/party/decrease")
+def decrease_party():
+
+    current = settings.get("party_size")
+    minimum = settings.get("min_party_size")
+
+    if current > minimum:
+        settings.set("party_size", current - 1)
+
+    return RedirectResponse("/", status_code=303)

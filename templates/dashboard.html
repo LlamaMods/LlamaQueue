@@ -16,6 +16,7 @@
     <div class="dashboard-grid">
 
         <!-- LEFT COLUMN -->
+
         <div class="side-column">
 
             <div class="card">
@@ -28,34 +29,53 @@
                 </div>
 
                 <div class="status-card">
-                    <span>Lobby Size</span>
-                    <strong>{{ lobby_size }}</strong>
+
+                    <span>Party Size</span>
+
+                    <div class="party-size-controls">
+
+                        <form action="/party/decrease" method="post">
+
+                            <button
+                                type="submit"
+                                class="party-button">
+                                −
+                            </button>
+
+                        </form>
+
+                        <strong>{{ party_size }}</strong>
+
+                        <form action="/party/increase" method="post">
+
+                            <button
+                                type="submit"
+                                class="party-button">
+                                +
+                            </button>
+
+                        </form>
+
+                    </div>
+
                 </div>
 
                 <div class="buttons">
 
                     <form action="/open" method="post">
+
                         <button class="success">
                             🟢 Open Queue
                         </button>
+
                     </form>
 
                     <form action="/close" method="post">
+
                         <button class="danger">
                             🔴 Close Queue
                         </button>
-                    </form>
 
-                </div>
-
-                <div class="buttons">
-
-                    <form action="/lobby/5" method="post">
-                        <button>👥 5 Players</button>
-                    </form>
-
-                    <form action="/lobby/10" method="post">
-                        <button>👥 10 Players</button>
                     </form>
 
                 </div>
@@ -77,8 +97,17 @@
                         {% for player in lobby.players %}
 
                         <p>
-                            🦙 {{ player.youtube }}<br>
-                            <small>🎮 {{ player.trainer }}</small>
+
+                            {{ player.youtube }}
+
+                            <br>
+
+                            <small>
+
+                                {{ player.trainer }}
+
+                            </small>
+
                         </p>
 
                         {% endfor %}
@@ -89,7 +118,7 @@
 
                 {% else %}
 
-                    <p>No completed lobbies yet.</p>
+                    <p>No completed parties yet.</p>
 
                 {% endif %}
 
@@ -98,19 +127,22 @@
         </div>
 
         <!-- RIGHT COLUMN -->
+
         <div class="main-column">
 
             <div class="card">
 
-                <h2>🎮 Current Lobby</h2>
+                <h2>🎮 Current Party</h2>
 
                 {% if current %}
 
                 <table class="mission-table">
 
                     <tr>
+
                         <th>YouTube</th>
                         <th>Player</th>
+
                     </tr>
 
                     {% for player in current %}
@@ -119,7 +151,11 @@
 
                         <td>{{ player.youtube }}</td>
 
-                        <td>{{ player.trainer if player.trainer else "Not Set" }}</td>
+                        <td>
+
+                            {{ player.trainer if player.trainer else "Not Set" }}
+
+                        </td>
 
                     </tr>
 
@@ -129,7 +165,7 @@
 
                 {% else %}
 
-                    <p>No players currently in the lobby.</p>
+                    <p>No players currently in the party.</p>
 
                 {% endif %}
 
@@ -146,7 +182,9 @@
                     <form action="/complete" method="post">
 
                         <button>
-                            🚀 Start Raid
+
+                            🚀 Launch Party
+
                         </button>
 
                     </form>
@@ -157,15 +195,17 @@
 
             <div class="card">
 
-                <h2>⏭ Next Lobby</h2>
+                <h2>⏭ Next Party</h2>
 
                 {% if next_lobby %}
 
                 <table class="mission-table">
 
                     <tr>
+
                         <th>YouTube</th>
                         <th>Player</th>
+
                     </tr>
 
                     {% for player in next_lobby %}
@@ -174,7 +214,11 @@
 
                         <td>{{ player.youtube }}</td>
 
-                        <td>{{ player.trainer if player.trainer else "Not Set" }}</td>
+                        <td>
+
+                            {{ player.trainer if player.trainer else "Not Set" }}
+
+                        </td>
 
                     </tr>
 
@@ -186,7 +230,7 @@
 
                 <p class="queue-summary">
 
-                    {{ remaining_waiting }} more players waiting...
+                    {{ remaining_waiting }} more player(s) waiting...
 
                 </p>
 
@@ -209,12 +253,14 @@
 <script>
 
 const trainerNames = [
+
 {% for trainer in trainer_names %}
 "{{ trainer }}",
 {% endfor %}
+
 ];
 
-function copyLobby() {
+function copyLobby(){
 
     navigator.clipboard.writeText(
         trainerNames.join("\n")
@@ -227,4 +273,5 @@ function copyLobby() {
 </script>
 
 </body>
+
 </html>

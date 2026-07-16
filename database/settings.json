@@ -1,0 +1,10 @@
+{
+    "creator_name": "Creator Queue",
+    "queue_name": "Community Queue",
+    "player_label": "Player",
+    "party_size": 3,
+    "min_party_size": 1,
+    "max_party_size": 10,
+    "estimated_match_length": 4,
+    "theme": "dark"
+}
