@@ -6,13 +6,57 @@
 
     <h1>⚙ Creator Settings</h1>
 
-    <div class="card">
+    <form action="/settings/save" method="post">
 
-        <h2>Queue Settings</h2>
+        <!-- Creator -->
 
-        <form action="/settings/save" method="post">
+        <div class="card">
+
+            <h2>🎮 Creator</h2>
 
             <div class="status-card">
+
+                <span>Creator Name</span>
+
+                <input
+                    type="text"
+                    name="creator_name"
+                    value="{{ settings.creator_name }}">
+
+            </div>
+
+            <div class="status-card">
+
+                <span>Queue Name</span>
+
+                <input
+                    type="text"
+                    name="queue_name"
+                    value="{{ settings.queue_name }}">
+
+            </div>
+
+            <div class="status-card">
+
+                <span>Player Label</span>
+
+                <input
+                    type="text"
+                    name="player_label"
+                    value="{{ settings.player_label }}">
+
+            </div>
+
+        </div>
+
+        <!-- Queue -->
+
+        <div class="card">
+
+            <h2>👥 Queue</h2>
+
+            <div class="status-card">
+
                 <span>Default Party Size</span>
 
                 <input
@@ -21,37 +65,85 @@
                     value="{{ settings.party_size }}"
                     min="{{ settings.min_party_size }}"
                     max="{{ settings.max_party_size }}">
+
             </div>
 
             <div class="status-card">
+
                 <span>Minimum Party Size</span>
 
                 <input
                     type="number"
                     name="min_party_size"
                     value="{{ settings.min_party_size }}">
+
             </div>
 
             <div class="status-card">
+
                 <span>Maximum Party Size</span>
 
                 <input
                     type="number"
                     name="max_party_size"
                     value="{{ settings.max_party_size }}">
-            </div>
-
-            <div class="buttons">
-
-                <button class="success">
-                    💾 Save Settings
-                </button>
 
             </div>
 
-        </form>
+            <div class="status-card">
 
-    </div>
+                <span>Estimated Match Length (minutes)</span>
+
+                <input
+                    type="number"
+                    name="estimated_match_length"
+                    value="{{ settings.estimated_match_length }}">
+
+            </div>
+
+        </div>
+
+        <!-- Appearance -->
+
+        <div class="card">
+
+            <h2>🎨 Appearance</h2>
+
+            <div class="status-card">
+
+                <span>Theme</span>
+
+                <select name="theme">
+
+                    <option
+                        value="dark"
+                        {% if settings.theme == "dark" %}selected{% endif %}>
+                        Dark
+                    </option>
+
+                    <option
+                        value="light"
+                        {% if settings.theme == "light" %}selected{% endif %}>
+                        Light
+                    </option>
+
+                </select>
+
+            </div>
+
+        </div>
+
+        <div class="buttons">
+
+            <button class="success">
+
+                💾 Save Settings
+
+            </button>
+
+        </div>
+
+    </form>
 
 </div>
 

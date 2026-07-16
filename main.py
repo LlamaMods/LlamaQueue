@@ -16,7 +16,6 @@ from settings_manager import SettingsManager
 
 app = FastAPI()
 
-templates = Jinja2Templates(directory="templates")
 
 app.mount(
     "/static",
@@ -29,6 +28,14 @@ registrations = RegistrationManager()
 history = LobbyHistoryManager()
 profile = ProfileManager()
 settings = SettingsManager()
+templates = Jinja2Templates(
+    directory="templates",
+    context_processors=[
+        lambda request: {
+            "settings": settings.get_all()
+        }
+    ]
+)
 
 
 # -------------------------
@@ -58,13 +65,17 @@ def home(request: Request):
     creator_settings = settings.get_all()
 
     # Keep QueueManager in sync with the selected party size
-    queue.set_lobby_size(creator_settings["party_size"])
+    queue.set_lobby_size(
+        creator_settings["party_size"]
+    )
 
     current = queue.current_lobby()
     waiting = queue.waiting_players()
     history_items = history.get_history()
 
-    next_lobby = waiting[:creator_settings["party_size"]]
+    next_lobby = waiting[
+        :creator_settings["party_size"]
+    ]
 
     remaining_waiting = max(
         0,
@@ -82,13 +93,20 @@ def home(request: Request):
         name="dashboard.html",
         context={
             "status": status,
+
             "party_size": creator_settings["party_size"],
+
             "current": current,
             "waiting": len(waiting),
+
             "history": history_items,
+
             "trainer_names": trainer_names,
+
             "next_lobby": next_lobby,
             "remaining_waiting": remaining_waiting,
+
+    
         },
     )
 
@@ -188,12 +206,13 @@ def decrease_party():
 @app.get("/settings")
 def settings_page(request: Request):
 
+
     return templates.TemplateResponse(
         request=request,
         name="settings.html",
         context={
             "title": "Settings",
-            "settings": settings.get_all()
+            
         }
     )
 
@@ -201,22 +220,41 @@ def settings_page(request: Request):
 @app.post("/settings/save")
 def save_settings(
 
+    creator_name: str = Form(...),
+    queue_name: str = Form(...),
+    player_label: str = Form(...),
+
     party_size: int = Form(...),
     min_party_size: int = Form(...),
-    max_party_size: int = Form(...)
+    max_party_size: int = Form(...),
+
+    estimated_match_length: int = Form(...),
+
+    theme: str = Form(...)
 
 ):
+
+    settings.set("creator_name", creator_name)
+    settings.set("queue_name", queue_name)
+    settings.set("player_label", player_label)
 
     settings.set("party_size", party_size)
     settings.set("min_party_size", min_party_size)
     settings.set("max_party_size", max_party_size)
+
+    settings.set(
+        "estimated_match_length",
+        estimated_match_length
+    )
+
+    settings.set("theme", theme)
 
     return RedirectResponse(
         "/settings",
         status_code=303
     )
 
-    
+
 # -------------------------
 # API
 # -------------------------

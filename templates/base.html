@@ -27,27 +27,91 @@
 
         <div class="sidebar-header">
 
-            <h2>🎮 CreatorQueue</h2>
+            <button
+                id="sidebar-toggle"
+                class="sidebar-toggle">
+
+                ☰
+
+            </button>
+
+            <h2>🎮 {{ settings.creator_name }}</h2>
 
         </div>
 
         <nav class="sidebar-nav">
 
-            <a href="/">🏠 Dashboard</a>
+            <a
+                href="/"
+                class="{% if request.url.path == '/' %}active{% endif %}">
 
-            <a href="/queue">👥 Queue</a>
+                <span class="nav-icon">🏠</span>
+                <span class="nav-text">Dashboard</span>
 
-            <a href="/activity">📜 Activity</a>
+            </a>
 
-            <a href="/settings">⚙ Settings</a>
+            <a
+                href="/queue"
+                class="{% if request.url.path == '/queue' %}active{% endif %}">
 
-            <a href="/branding">🎨 Branding</a>
+                <span class="nav-icon">👥</span>
+                <span class="nav-text">Queue</span>
 
-            <a href="/moderators">👮 Moderators</a>
+            </a>
 
-            <a href="/stats">📊 Statistics</a>
+            <a
+                href="/activity"
+                class="{% if request.url.path == '/activity' %}active{% endif %}">
 
-            <a href="/about">❓ About</a>
+                <span class="nav-icon">📜</span>
+                <span class="nav-text">Activity</span>
+
+            </a>
+
+            <a
+                href="/settings"
+                class="{% if request.url.path == '/settings' %}active{% endif %}">
+
+                <span class="nav-icon">⚙</span>
+                <span class="nav-text">Settings</span>
+
+            </a>
+
+            <a
+                href="/branding"
+                class="{% if request.url.path == '/branding' %}active{% endif %}">
+
+                <span class="nav-icon">🎨</span>
+                <span class="nav-text">Branding</span>
+
+            </a>
+
+            <a
+                href="/moderators"
+                class="{% if request.url.path == '/moderators' %}active{% endif %}">
+
+                <span class="nav-icon">👮</span>
+                <span class="nav-text">Moderators</span>
+
+            </a>
+
+            <a
+                href="/stats"
+                class="{% if request.url.path == '/stats' %}active{% endif %}">
+
+                <span class="nav-icon">📊</span>
+                <span class="nav-text">Statistics</span>
+
+            </a>
+
+            <a
+                href="/about"
+                class="{% if request.url.path == '/about' %}active{% endif %}">
+
+                <span class="nav-icon">❓</span>
+                <span class="nav-text">About</span>
+
+            </a>
 
         </nav>
 
@@ -63,6 +127,39 @@
     </main>
 
 </div>
+
+<script>
+
+const sidebar =
+    document.querySelector(".sidebar");
+
+const toggle =
+    document.getElementById("sidebar-toggle");
+
+// Restore previous state
+
+if (localStorage.getItem("sidebar") === "collapsed") {
+
+    sidebar.classList.add("collapsed");
+
+}
+
+// Toggle sidebar
+
+toggle.addEventListener("click", () => {
+
+    sidebar.classList.toggle("collapsed");
+
+    localStorage.setItem(
+        "sidebar",
+        sidebar.classList.contains("collapsed")
+            ? "collapsed"
+            : "expanded"
+    );
+
+});
+
+</script>
 
 </body>
 
