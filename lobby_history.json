@@ -1,0 +1,142 @@
+[
+    {
+        "time": "08:45 PM",
+        "players": [
+            {
+                "youtube": "Pocket",
+                "trainer": "PocketJon",
+                "ready": false
+            },
+            {
+                "youtube": "Rockstar",
+                "trainer": "LoisRockstar",
+                "ready": false
+            },
+            {
+                "youtube": "BadLuck",
+                "trainer": "BadLuck",
+                "ready": false
+            },
+            {
+                "youtube": "AirBrake",
+                "trainer": "AirBrake",
+                "ready": false
+            }
+        ]
+    },
+    {
+        "time": "08:45 PM",
+        "players": [
+            {
+                "youtube": "Southern",
+                "trainer": "Southern",
+                "ready": false
+            },
+            {
+                "youtube": "Roman",
+                "trainer": "Roman",
+                "ready": false
+            },
+            {
+                "youtube": "Steve",
+                "trainer": "Steve",
+                "ready": false
+            },
+            {
+                "youtube": "Sarah",
+                "trainer": "Sarah",
+                "ready": false
+            },
+            {
+                "youtube": "Ryan",
+                "trainer": "LlamaRyan",
+                "ready": false
+            }
+        ]
+    },
+    {
+        "time": "06:51 PM",
+        "players": [
+            {
+                "youtube": "Ryan",
+                "trainer": "LlamaRyan",
+                "ready": false
+            },
+            {
+                "youtube": "Pocket",
+                "trainer": "PocketJon",
+                "ready": false
+            },
+            {
+                "youtube": "Rockstar",
+                "trainer": "LoisRockstar",
+                "ready": false
+            },
+            {
+                "youtube": "BadLuck",
+                "trainer": "BadLuck",
+                "ready": false
+            },
+            {
+                "youtube": "AirBrake",
+                "trainer": "AirBrake",
+                "ready": false
+            }
+        ]
+    },
+    {
+        "time": "06:43 PM",
+        "players": [
+            {
+                "youtube": "Pocket",
+                "trainer": "PocketJon",
+                "ready": false
+            },
+            {
+                "youtube": "Rockstar",
+                "trainer": "LoisRockstar",
+                "ready": false
+            },
+            {
+                "youtube": "BadLuck",
+                "trainer": "BadLuck",
+                "ready": false
+            },
+            {
+                "youtube": "AirBrake",
+                "trainer": "AirBrake",
+                "ready": false
+            }
+        ]
+    },
+    {
+        "time": "06:43 PM",
+        "players": [
+            {
+                "youtube": "Southern",
+                "trainer": "Southern",
+                "ready": false
+            },
+            {
+                "youtube": "Roman",
+                "trainer": "Roman",
+                "ready": false
+            },
+            {
+                "youtube": "Steve",
+                "trainer": "Steve",
+                "ready": false
+            },
+            {
+                "youtube": "Sarah",
+                "trainer": "Sarah",
+                "ready": false
+            },
+            {
+                "youtube": "Ryan",
+                "trainer": "LlamaRyan",
+                "ready": false
+            }
+        ]
+    }
+]

@@ -3,6 +3,7 @@ import os
 
 
 class QueueManager:
+
     def __init__(self):
 
         self.file = "database/queue.json"
@@ -22,7 +23,6 @@ class QueueManager:
     def load(self):
 
         with open(self.file, "r") as f:
-
             data = json.load(f)
 
         self.players = data.get("players", [])
@@ -108,6 +108,8 @@ class QueueManager:
     def complete_lobby(self):
 
         self.load()
+
+        print("✅ COMPLETE LOBBY CALLED")
 
         self.players = self.players[self.lobby_size:]
 

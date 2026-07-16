@@ -1,33 +1,230 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <title>Llama Queue</title>
-    <link rel="stylesheet" href="/style.css">
+    <meta charset="UTF-8">
+    <title>Creator Queue Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
 
 <div class="container">
 
-<h1>🦙 Llama Queue</h1>
+    <h1>🎮 Creator Queue Dashboard</h1>
 
-<div class="card">
-    <h2>Queue Status</h2>
-    <p>🟢 OPEN</p>
+    <div class="dashboard-grid">
+
+        <!-- LEFT COLUMN -->
+        <div class="side-column">
+
+            <div class="card">
+
+                <h2>🎛 Mission Controls</h2>
+
+                <div class="status-card">
+                    <span>Queue Status</span>
+                    <strong>{{ status }}</strong>
+                </div>
+
+                <div class="status-card">
+                    <span>Lobby Size</span>
+                    <strong>{{ lobby_size }}</strong>
+                </div>
+
+                <div class="buttons">
+
+                    <form action="/open" method="post">
+                        <button class="success">
+                            🟢 Open Queue
+                        </button>
+                    </form>
+
+                    <form action="/close" method="post">
+                        <button class="danger">
+                            🔴 Close Queue
+                        </button>
+                    </form>
+
+                </div>
+
+                <div class="buttons">
+
+                    <form action="/lobby/5" method="post">
+                        <button>👥 5 Players</button>
+                    </form>
+
+                    <form action="/lobby/10" method="post">
+                        <button>👥 10 Players</button>
+                    </form>
+
+                </div>
+
+            </div>
+
+            <div class="card">
+
+                <h2>📚 Lobby History</h2>
+
+                {% if history %}
+
+                    {% for lobby in history %}
+
+                    <div class="history-card">
+
+                        <h3>🕒 {{ lobby.time }}</h3>
+
+                        {% for player in lobby.players %}
+
+                        <p>
+                            🦙 {{ player.youtube }}<br>
+                            <small>🎮 {{ player.trainer }}</small>
+                        </p>
+
+                        {% endfor %}
+
+                    </div>
+
+                    {% endfor %}
+
+                {% else %}
+
+                    <p>No completed lobbies yet.</p>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="main-column">
+
+            <div class="card">
+
+                <h2>🎮 Current Lobby</h2>
+
+                {% if current %}
+
+                <table class="mission-table">
+
+                    <tr>
+                        <th>YouTube</th>
+                        <th>Player</th>
+                    </tr>
+
+                    {% for player in current %}
+
+                    <tr>
+
+                        <td>{{ player.youtube }}</td>
+
+                        <td>{{ player.trainer if player.trainer else "Not Set" }}</td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </table>
+
+                {% else %}
+
+                    <p>No players currently in the lobby.</p>
+
+                {% endif %}
+
+                <div class="buttons">
+
+                    <button
+                        type="button"
+                        onclick="copyLobby()">
+
+                        📋 Copy Player Names
+
+                    </button>
+
+                    <form action="/complete" method="post">
+
+                        <button>
+                            🚀 Start Raid
+                        </button>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+            <div class="card">
+
+                <h2>⏭ Next Lobby</h2>
+
+                {% if next_lobby %}
+
+                <table class="mission-table">
+
+                    <tr>
+                        <th>YouTube</th>
+                        <th>Player</th>
+                    </tr>
+
+                    {% for player in next_lobby %}
+
+                    <tr>
+
+                        <td>{{ player.youtube }}</td>
+
+                        <td>{{ player.trainer if player.trainer else "Not Set" }}</td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </table>
+
+                {% if remaining_waiting > 0 %}
+
+                <p class="queue-summary">
+
+                    {{ remaining_waiting }} more players waiting...
+
+                </p>
+
+                {% endif %}
+
+                {% else %}
+
+                    <p>The queue is empty.</p>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
 </div>
 
-<div class="card">
-    <h2>Players Waiting</h2>
-    <p>0</p>
-</div>
+<script>
 
-<div class="buttons">
-    <button>Join</button>
-    <button>Next</button>
-    <button>Skip</button>
-</div>
+const trainerNames = [
+{% for trainer in trainer_names %}
+"{{ trainer }}",
+{% endfor %}
+];
 
-</div>
+function copyLobby() {
+
+    navigator.clipboard.writeText(
+        trainerNames.join("\n")
+    );
+
+    alert("Player names copied!");
+
+}
+
+</script>
 
 </body>
 </html>

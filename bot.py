@@ -1,12 +1,14 @@
 from registration_manager import RegistrationManager
 from queue_manager import QueueManager
 from youtube_manager import YouTubeManager
-
+from moderator_manager import ModeratorManager
+from activity_manager import ActivityManager
 
 registrations = RegistrationManager()
 queue = QueueManager()
 youtube = YouTubeManager()
-
+moderators = ModeratorManager()
+activity = ActivityManager()
 
 print("🦙 Llama Queue Bot")
 print("Connecting to YouTube...")
@@ -32,6 +34,52 @@ def handle_message(author, message):
     print(f"{author}: {message}")
 
     # ------------------------------------
+    # !open
+    # ------------------------------------
+
+    if message == "!open":
+
+        if not moderators.is_moderator(author):
+
+            youtube.send_message(
+                f"{author} You don't have permission to use this command."
+            )
+
+            return
+
+        queue.open_queue()
+
+        activity.add(f"{author} closed the queue.")
+
+        youtube.send_message(
+            "🟢 Queue is now OPEN!"
+        )
+
+        return
+
+    # ------------------------------------
+    # !close
+    # ------------------------------------
+
+    if message == "!close":
+
+        if not moderators.is_moderator(author):
+
+            youtube.send_message(
+                f"{author} You don't have permission to use this command."
+            )
+
+            return
+
+        queue.close_queue()
+
+        youtube.send_message(
+            "🔴 Queue is now CLOSED!"
+        )
+
+        return
+
+    # ------------------------------------
     # !reg
     # ------------------------------------
 
@@ -46,13 +94,13 @@ def handle_message(author, message):
             if trainer:
 
                 youtube.send_message(
-                    f"@{author} Your registered trainer is {trainer}"
+                    f"{author} Your registered trainer is {trainer}"
                 )
 
             else:
 
                 youtube.send_message(
-                    f"@{author} You are not registered. Use !reg TrainerName"
+                    f"{author} You are not registered. Use !reg TrainerName"
                 )
 
             return
@@ -65,7 +113,7 @@ def handle_message(author, message):
         )
 
         youtube.send_message(
-            f"@{author} Registration complete! Trainer: {trainer_name}"
+            f"{author} Registration complete! Trainer: {trainer_name}"
         )
 
         return
@@ -81,7 +129,7 @@ def handle_message(author, message):
         if trainer is None:
 
             youtube.send_message(
-                f"@{author} Please register first using !reg TrainerName"
+                f"{author} Please register first using !reg TrainerName"
             )
 
             return
@@ -90,6 +138,9 @@ def handle_message(author, message):
             author,
             trainer
         )
+        if success:
+            activity.add(f"{author} joined the queue.")
+          
 
         if success:
 
@@ -107,7 +158,7 @@ def handle_message(author, message):
             )
 
             youtube.send_message(
-                f"@{author} Joined! Position #{position} | Lobby {lobby} | Est. {wait}"
+                f"{author} Joined! Position #{position} | Lobby {lobby} | Est. {wait}"
             )
 
         else:
@@ -115,26 +166,29 @@ def handle_message(author, message):
             if not queue.is_open():
 
                 youtube.send_message(
-                    f"@{author} Queue is currently CLOSED."
+                    f"{author} Queue is currently CLOSED."
                 )
 
             else:
 
                 youtube.send_message(
-                    f"@{author} You're already in the queue."
+                    f"{author} You're already in the queue."
                 )
 
         return
-            # ------------------------------------
+           
+    # ------------------------------------
     # !leave
     # ------------------------------------
 
     if message == "!leave":
 
         queue.remove(author)
+        
+        activity.add(f"{author} left the queue.")
 
         youtube.send_message(
-            f"@{author} You have left the queue."
+            f"{author} You have left the queue."
         )
 
         return
@@ -158,13 +212,13 @@ def handle_message(author, message):
                 wait = queue.estimated_wait(index)
 
                 youtube.send_message(
-                    f"@{author} Position #{index + 1} | Lobby {lobby} | Est. {wait}"
+                    f"{author} Position #{index + 1} | Lobby {lobby} | Est. {wait}"
                 )
 
                 return
 
         youtube.send_message(
-            f"@{author} You are not currently in the queue."
+            f"{author} You are not currently in the queue."
         )
 
         return
@@ -172,9 +226,5 @@ def handle_message(author, message):
     # Ignore everything else for now.
     return
 
-
-print()
-print("🦙 Listening for YouTube chat...")
-print()
 
 youtube.listen(handle_message)

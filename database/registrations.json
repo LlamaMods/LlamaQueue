@@ -4,5 +4,8 @@
     },
     "RyanStone": {
         "trainer": "LlamaRyan"
+    },
+    "@LlamaModdingCo": {
+        "trainer": "TestTrainer"
     }
 }

@@ -1,0 +1,10 @@
+{
+    "game": "Pokémon GO",
+    "player_label": "Trainer Name",
+    "join_command": "!join",
+    "leave_command": "!leave",
+    "copy_button": "📋 Copy Pokémon GO Names",
+    "launch_button": "🚀 Start Raid",
+    "default_lobby_size": 5,
+    "max_lobby_size": 10
+}

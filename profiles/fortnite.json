@@ -1,0 +1,10 @@
+{
+    "game": "Fortnite",
+    "player_label": "Epic Name",
+    "join_command": "!join",
+    "leave_command": "!leave",
+    "copy_button": "📋 Copy Player Names",
+    "launch_button": "🚀 Launch Lobby",
+    "default_lobby_size": 4,
+    "max_lobby_size": 6
+}

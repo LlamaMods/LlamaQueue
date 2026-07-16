@@ -1,0 +1,581 @@
+/* ==========================================================
+   Creator Queue Dashboard
+   ========================================================== */
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    background:#101418;
+    color:#F4F7F8;
+    font-family:"Segoe UI",Arial,Helvetica,sans-serif;
+}
+
+.container{
+    width:min(1500px,95%);
+    margin:30px auto;
+}
+
+h1{
+    text-align:center;
+    margin-bottom:30px;
+    font-size:42px;
+    font-weight:700;
+    color:#7BE495;
+    letter-spacing:.5px;
+}
+
+/* ==========================================================
+   Dashboard Layout
+   ========================================================== */
+
+.dashboard-grid{
+    display:grid;
+    grid-template-columns:360px 1fr;
+    gap:24px;
+    align-items:start;
+}
+
+.side-column,
+.main-column{
+    display:flex;
+    flex-direction:column;
+    gap:24px;
+}
+
+/* ==========================================================
+   Cards
+   ========================================================== */
+
+.card{
+    background:#1B2128;
+    border:1px solid #2E3742;
+    border-radius:16px;
+    padding:22px;
+    overflow:hidden;
+
+    box-shadow:0 10px 30px rgba(0,0,0,.35);
+
+    transition:
+        transform .2s,
+        box-shadow .2s;
+}
+
+.card:hover{
+    transform:translateY(-3px);
+    box-shadow:0 14px 40px rgba(0,0,0,.45);
+}
+
+.main-column .card:first-child{
+    border:2px solid #33C759;
+}
+
+.card h2{
+    color:#7BE495;
+    margin-bottom:18px;
+    font-size:24px;
+}
+
+.card h3{
+    color:#A9F5B6;
+    margin-bottom:10px;
+    margin-top:18px;
+}
+
+/* ==========================================================
+   Status Cards
+   ========================================================== */
+
+.status-card{
+
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    padding:14px 18px;
+    margin-bottom:12px;
+
+    border-radius:10px;
+
+    background:#252D36;
+    border:1px solid #303944;
+
+}
+
+.status-card span{
+    color:#BAC2CA;
+    font-size:14px;
+}
+
+.status-card strong{
+    color:#7BE495;
+    font-size:20px;
+    font-weight:700;
+}
+
+/* ==========================================================
+   Buttons
+   ========================================================== */
+
+.buttons{
+
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+
+    margin-top:18px;
+
+}
+
+.buttons form{
+
+    flex:1;
+
+}
+
+button{
+
+    width:100%;
+
+    padding:13px;
+
+    border:none;
+    border-radius:10px;
+
+    background:#33C759;
+
+    color:white;
+
+    cursor:pointer;
+
+    font-size:15px;
+    font-weight:700;
+
+    transition:
+        background .2s,
+        transform .15s,
+        box-shadow .2s;
+
+}
+
+button:hover{
+
+    background:#28AE4A;
+
+    transform:translateY(-2px);
+
+}
+
+button:active{
+
+    transform:scale(.98);
+
+}
+
+.success{
+
+    background:#2FBF5B;
+
+}
+
+.success:hover{
+
+    background:#28A94C;
+
+}
+
+.danger{
+
+    background:#D64545;
+
+}
+
+.danger:hover{
+
+    background:#B92F2F;
+
+}
+
+/* ==========================================================
+   Inputs
+   ========================================================== */
+
+input{
+
+    width:100%;
+
+    padding:12px;
+
+    border:none;
+    border-radius:8px;
+
+    background:#2B323B;
+
+    color:white;
+
+    font-size:15px;
+
+}
+
+input::placeholder{
+
+    color:#8F98A3;
+
+}
+
+/* ==========================================================
+   Mission Tables
+   ========================================================== */
+
+.mission-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+    margin-bottom:20px;
+
+}
+
+.mission-table th{
+
+    background:#252D36;
+
+    color:#7BE495;
+
+    text-align:left;
+
+    padding:14px;
+
+    font-size:15px;
+
+}
+
+.mission-table td{
+
+    padding:14px;
+
+    border-bottom:1px solid #303944;
+
+    vertical-align:middle;
+
+}
+
+.mission-table th:first-child,
+.mission-table td:first-child{
+
+    width:40%;
+
+}
+
+.mission-table tr:hover{
+
+    background:#222A33;
+
+}
+
+/* ==========================================================
+   Player Cards
+   ========================================================== */
+
+.player-card{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    gap:20px;
+
+    padding:16px 0;
+
+    border-bottom:1px solid #303944;
+
+}
+
+.player-card:last-child{
+
+    border-bottom:none;
+
+}
+
+.player-info{
+
+    flex:1;
+
+}
+
+.player-info h2{
+
+    margin:0;
+
+    font-size:21px;
+
+    color:white;
+
+}
+
+.player-info p{
+
+    margin-top:6px;
+
+    color:#C6CDD3;
+
+}
+
+.status{
+
+    color:#65F08A;
+
+    font-weight:700;
+
+}
+
+.wait{
+
+    color:#FFD166;
+
+}
+
+/* ==========================================================
+   Remove Button
+   ========================================================== */
+
+.remove{
+
+    width:48px;
+
+    background:#D64545;
+
+}
+
+.remove:hover{
+
+    background:#B92F2F;
+
+}
+
+/* ==========================================================
+   Lobby History
+   ========================================================== */
+
+.history-card{
+
+    background:#252D36;
+
+    border:1px solid #303944;
+
+    border-radius:12px;
+
+    padding:14px;
+
+    margin-bottom:16px;
+
+}
+
+.history-card:last-child{
+
+    margin-bottom:0;
+
+}
+
+.history-card h3{
+
+    margin:0 0 10px;
+
+}
+
+.history-card p{
+
+    margin:8px 0;
+
+    color:#D3D9DF;
+
+}
+
+.history-card small{
+
+    color:#9AA5AF;
+
+}
+
+/* ==========================================================
+   Queue Summary
+   ========================================================== */
+
+.queue-summary{
+
+    margin-top:18px;
+
+    padding:14px;
+
+    border-radius:10px;
+
+    border:1px solid #303944;
+
+    background:#252D36;
+
+    text-align:center;
+
+    font-size:16px;
+
+    font-weight:700;
+
+    color:#7BE495;
+
+}
+
+/* ==========================================================
+   Forms / HR
+   ========================================================== */
+
+form{
+
+    margin:0;
+
+}
+
+hr{
+
+    border:none;
+
+    border-top:1px solid #303944;
+
+    margin:20px 0;
+
+}
+
+/* ==========================================================
+   Scrollbar
+   ========================================================== */
+
+::-webkit-scrollbar{
+
+    width:10px;
+
+}
+
+::-webkit-scrollbar-track{
+
+    background:#161B20;
+
+}
+
+::-webkit-scrollbar-thumb{
+
+    background:#3B4652;
+
+    border-radius:20px;
+
+}
+
+::-webkit-scrollbar-thumb:hover{
+
+    background:#556270;
+
+}
+
+/* ==========================================================
+   Mobile
+   ========================================================== */
+
+@media (max-width:1100px){
+
+    .dashboard-grid{
+
+        grid-template-columns:1fr;
+
+    }
+
+}
+
+@media (max-width:700px){
+
+    .container{
+
+        width:96%;
+        margin:15px auto;
+
+    }
+
+    h1{
+
+        font-size:28px;
+
+    }
+
+    .card{
+
+        padding:16px;
+
+    }
+
+    .card h2{
+
+        font-size:20px;
+
+    }
+
+    .buttons{
+
+        flex-direction:column;
+
+    }
+
+    .buttons form{
+
+        width:100%;
+
+    }
+
+    button{
+
+        width:100%;
+
+        min-height:54px;
+
+        font-size:17px;
+
+    }
+
+    .status-card{
+
+        flex-direction:column;
+
+        align-items:flex-start;
+
+        gap:6px;
+
+    }
+
+    .mission-table{
+
+        display:block;
+
+        overflow-x:auto;
+
+        white-space:nowrap;
+
+    }
+
+    .player-card{
+
+        flex-direction:column;
+
+        align-items:flex-start;
+
+        gap:12px;
+
+    }
+
+    .remove{
+
+        width:100%;
+
+    }
+
+}
