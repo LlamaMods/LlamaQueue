@@ -181,7 +181,42 @@ def decrease_party():
 
     return RedirectResponse("/", status_code=303)
 
+# -------------------------
+# Settings
+# -------------------------
 
+@app.get("/settings")
+def settings_page(request: Request):
+
+    return templates.TemplateResponse(
+        request=request,
+        name="settings.html",
+        context={
+            "title": "Settings",
+            "settings": settings.get_all()
+        }
+    )
+
+
+@app.post("/settings/save")
+def save_settings(
+
+    party_size: int = Form(...),
+    min_party_size: int = Form(...),
+    max_party_size: int = Form(...)
+
+):
+
+    settings.set("party_size", party_size)
+    settings.set("min_party_size", min_party_size)
+    settings.set("max_party_size", max_party_size)
+
+    return RedirectResponse(
+        "/settings",
+        status_code=303
+    )
+
+    
 # -------------------------
 # API
 # -------------------------

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container">
+
+    <h1>⚙ Creator Settings</h1>
+
+    <div class="card">
+
+        <h2>Queue Settings</h2>
+
+        <form action="/settings/save" method="post">
+
+            <div class="status-card">
+                <span>Default Party Size</span>
+
+                <input
+                    type="number"
+                    name="party_size"
+                    value="{{ settings.party_size }}"
+                    min="{{ settings.min_party_size }}"
+                    max="{{ settings.max_party_size }}">
+            </div>
+
+            <div class="status-card">
+                <span>Minimum Party Size</span>
+
+                <input
+                    type="number"
+                    name="min_party_size"
+                    value="{{ settings.min_party_size }}">
+            </div>
+
+            <div class="status-card">
+                <span>Maximum Party Size</span>
+
+                <input
+                    type="number"
+                    name="max_party_size"
+                    value="{{ settings.max_party_size }}">
+            </div>
+
+            <div class="buttons">
+
+                <button class="success">
+                    💾 Save Settings
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+{% endblock %}

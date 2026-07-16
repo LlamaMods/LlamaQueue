@@ -1,13 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <title>Creator Queue Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-
-<body>
+{% block content %}
 
 <div class="container">
 
@@ -16,17 +9,23 @@
     <div class="dashboard-grid">
 
         <!-- LEFT COLUMN -->
+
         <div class="side-column">
+
+            <!-- Mission Controls -->
 
             <div class="card">
 
                 <h2>🎛 Mission Controls</h2>
 
                 <div class="status-card">
+
                     <span>Queue Status</span>
+
                     <strong id="queue-status">
                         {{ status }}
                     </strong>
+
                 </div>
 
                 <div class="status-card">
@@ -39,18 +38,24 @@
                             type="button"
                             class="party-button"
                             onclick="decreaseParty()">
+
                             −
+
                         </button>
 
                         <strong id="party-size">
+
                             {{ party_size }}
+
                         </strong>
 
                         <button
                             type="button"
                             class="party-button"
                             onclick="increaseParty()">
+
                             +
+
                         </button>
 
                     </div>
@@ -60,20 +65,30 @@
                 <div class="buttons">
 
                     <form action="/open" method="post">
+
                         <button class="success">
+
                             🟢 Open Queue
+
                         </button>
+
                     </form>
 
                     <form action="/close" method="post">
+
                         <button class="danger">
+
                             🔴 Close Queue
+
                         </button>
+
                     </form>
 
                 </div>
 
             </div>
+
+            <!-- Lobby History -->
 
             <div class="card">
 
@@ -81,39 +96,49 @@
 
                 <div id="history-container">
 
-                {% if history %}
+                    {% if history %}
 
-                    {% for lobby in history %}
+                        {% for lobby in history %}
 
-                    <div class="history-card">
+                        <div class="history-card">
 
-                        <h3>🕒 {{ lobby.time }}</h3>
+                            <h3>
 
-                        {% for player in lobby.players %}
+                                🕒 {{ lobby.time }}
 
-                        <p>
+                            </h3>
 
-                            {{ player.youtube }}
+                            {% for player in lobby.players %}
 
-                            <br>
+                            <p>
 
-                            <small>
-                                {{ player.trainer }}
-                            </small>
+                                {{ player.youtube }}
 
-                        </p>
+                                <br>
+
+                                <small>
+
+                                    {{ player.trainer }}
+
+                                </small>
+
+                            </p>
+
+                            {% endfor %}
+
+                        </div>
 
                         {% endfor %}
 
-                    </div>
+                    {% else %}
 
-                    {% endfor %}
+                        <p>
 
-                {% else %}
+                            No completed parties yet.
 
-                    <p>No completed parties yet.</p>
+                        </p>
 
-                {% endif %}
+                    {% endif %}
 
                 </div>
 
@@ -198,7 +223,8 @@
                         <th>YouTube</th>
                         <th>Player</th>
                     </tr>
-                                        {% for player in next_lobby %}
+
+                    {% for player in next_lobby %}
 
                     <tr>
 
@@ -286,9 +312,9 @@ async function refreshDashboard(){
     );
 
     renderNextParty(
-        data.next,
-        data.remaining_waiting
-    );
+    data.next,
+    data.remaining_waiting
+);
 
 }
 
@@ -359,18 +385,17 @@ function renderNextParty(players, remaining){
         </tr>
     `;
 
-    if(players.length === 0){
+    if (players.length === 0) {
 
     table.style.display = "none";
     empty.style.display = "block";
 
-}
-else{
+} else {
 
     table.style.display = "table";
     empty.style.display = "none";
 
-    players.forEach(player=>{
+    players.forEach(player => {
 
         table.innerHTML += `
             <tr>
@@ -416,19 +441,13 @@ async function decreaseParty(){
 
 }
 
-window.onload = () => {
+window.addEventListener("load", () => {
 
     refreshDashboard();
 
-    setInterval(
-        refreshDashboard,
-        3000
-    );
+    setInterval(refreshDashboard, 3000);
 
-};
-
+});
 </script>
 
-</body>
-
-</html>
+{% endblock %}

@@ -15,7 +15,8 @@ body{
 }
 
 .container{
-    width:min(1500px,95%);
+    width:100%;
+    max-width:1500px;
     margin:30px auto;
 }
 
@@ -26,6 +27,112 @@ h1{
     font-weight:700;
     color:#7BE495;
     letter-spacing:.5px;
+}
+
+/* ==========================================================
+   Application Layout
+   ========================================================== */
+
+.app-layout{
+
+    display:flex;
+
+    min-height:100vh;
+
+}
+
+.sidebar{
+
+    width:280px;
+
+    background:#181D23;
+
+    border-right:1px solid #2E3742;
+
+    display:flex;
+
+    flex-direction:column;
+
+    position:sticky;
+
+    top:0;
+
+    height:100vh;
+
+}
+
+.sidebar-header{
+
+    padding:28px 24px;
+
+    border-bottom:1px solid #2E3742;
+
+}
+
+.sidebar-header h2{
+
+    color:#7BE495;
+
+    font-size:28px;
+
+    margin:0;
+
+}
+
+.sidebar-nav{
+
+    display:flex;
+
+    flex-direction:column;
+
+    padding:18px;
+
+    gap:10px;
+
+}
+
+.sidebar-nav a{
+
+    text-decoration:none;
+
+    color:#D6DCE1;
+
+    padding:14px 18px;
+
+    border-radius:12px;
+
+    transition:.2s;
+
+    font-size:17px;
+
+    font-weight:600;
+
+}
+
+.sidebar-nav a:hover{
+
+    background:#252D36;
+
+    color:#7BE495;
+
+}
+
+.sidebar-nav a.active{
+
+    background:#33C759;
+
+    color:white;
+
+}
+
+.main-content{
+
+    flex:1;
+
+    padding:30px;
+
+    overflow:auto;
+
 }
 
 /* ==========================================================
