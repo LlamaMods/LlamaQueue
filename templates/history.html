@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container">
+
+    <h1>📜 History</h1>
+
+    <!-- Statistics -->
+
+    <div class="history-stats">
+
+        <div class="status-card">
+            <span>Total Lobbies</span>
+            <strong>{{ total_lobbies }}</strong>
+        </div>
+
+        <div class="status-card">
+            <span>Players Hosted</span>
+            <strong>{{ players_hosted }}</strong>
+        </div>
+
+        <div class="status-card">
+            <span>Average Players</span>
+            <strong>{{ average_players }}</strong>
+        </div>
+
+        <div class="status-card">
+            <span>Latest Lobby</span>
+
+            {% if latest_lobby %}
+                <strong>
+                    {{ latest_lobby.date|default("Unknown Date") }}<br>
+                    {{ latest_lobby.time }}
+                </strong>
+            {% else %}
+                <strong>None</strong>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <!-- Search -->
+
+    <div class="card">
+
+        <h2>🔍 Search History</h2>
+
+        <input
+            id="historySearch"
+            type="text"
+            placeholder="Search YouTube, Name or Lobby..."
+            autocomplete="off"
+        >
+
+        <p id="historyCount">
+            Showing {{ total_lobbies }}
+            {% if total_lobbies == 1 %}
+                lobby
+            {% else %}
+                lobbies
+            {% endif %}
+        </p>
+
+    </div>
+
+    {% if history %}
+
+        {% for lobby in history %}
+
+        <div class="history-card searchable">
+
+            <div class="history-header">
+
+                <h2>Lobby #{{ loop.index }}</h2>
+
+                <div class="status-card">
+                    <span>{{ lobby.date|default("Unknown Date") }}</span>
+                    <strong>{{ lobby.time }}</strong>
+                </div>
+
+            </div>
+
+            <div class="history-stats">
+
+                <div class="status-card">
+                    <span>Status</span>
+                    <strong>Completed ✅</strong>
+                </div>
+
+                <div class="status-card">
+                    <span>Players</span>
+                    <strong>{{ lobby.player_count|default(lobby.players|length) }}</strong>
+                </div>
+
+            </div>
+
+            <table class="mission-table">
+
+                <thead>
+
+                    <tr>
+                        <th>YouTube</th>
+                        <th>Name</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for player in lobby.players %}
+
+                    <tr>
+
+                        <td>{{ player.youtube }}</td>
+
+                        <td>{{ player.trainer if player.trainer else "—" }}</td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+            <div class="buttons">
+
+                <button
+                    class="success copyPlayers"
+                    data-lobby="{{ loop.index0 }}"
+                >
+                    📋 Copy Players
+                </button>
+
+                <form
+                    action="/history/delete"
+                    method="post"
+                    onsubmit="return confirm('Delete this lobby from history?');"
+                >
+
+                    <input
+                        type="hidden"
+                        name="index"
+                        value="{{ loop.index0 }}"
+                    >
+
+                    <button
+                        type="submit"
+                        class="danger"
+                    >
+                        🗑 Delete Lobby
+                    </button>
+
+                </form>
+
+            </div>
+
+            <div
+                class="copyData"
+                style="display:none;"
+            >
+{% for player in lobby.players %}
+{{ player.youtube }} - {{ player.trainer if player.trainer else "—" }}
+{% endfor %}
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <div class="card">
+
+            <h2>📭 No History Yet</h2>
+
+            <p>
+                Complete your first lobby and it will automatically appear here.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+<script>
+
+const search = document.getElementById("historySearch");
+const cards = document.querySelectorAll(".searchable");
+const counter = document.getElementById("historyCount");
+
+function filterHistory(){
+
+    const filter = search.value.toLowerCase();
+
+    let visible = 0;
+
+    cards.forEach(card=>{
+
+        const show = card.innerText.toLowerCase().includes(filter);
+
+        card.style.display = show ? "" : "none";
+
+        if(show) visible++;
+
+    });
+
+    counter.textContent =
+        `Showing ${visible} ${visible===1 ? "lobby" : "lobbies"}`;
+
+}
+
+search.addEventListener("input", filterHistory);
+
+document.querySelectorAll(".copyPlayers").forEach(button=>{
+
+    button.addEventListener("click",()=>{
+
+        const text =
+            button.closest(".history-card")
+                  .querySelector(".copyData")
+                  .innerText
+                  .trim();
+
+        navigator.clipboard.writeText(text);
+
+        button.innerText = "✅ Copied!";
+
+        setTimeout(()=>{
+            button.innerText = "📋 Copy Players";
+        },2000);
+
+    });
+
+});
+
+// Refresh every 15 seconds
+setInterval(()=>{
+    location.reload();
+},15000);
+
+</script>
+
+{% endblock %}

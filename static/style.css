@@ -1,37 +1,117 @@
-/* ==========================================================
-   Creator Queue Dashboard
-   ========================================================== */
+/*==================================================
+  Pocket Queue UI v2
+==================================================*/
+
+:root{
+
+    --bg:#101418;
+    --panel:#1B2128;
+    --panel-light:#252D36;
+
+    --border:#2E3742;
+
+    --text:#F4F7F8;
+    --muted:#A9B4BE;
+
+    --green:#33C759;
+    --green-light:#7BE495;
+
+    --red:#D64545;
+    --yellow:#FFD166;
+
+    --radius:14px;
+
+    --transition:.2s ease;
+
+    --shadow:
+        0 10px 30px rgba(0,0,0,.35);
+
+}
+
+
+/*==================================================
+  Reset
+==================================================*/
 
 *{
+
     margin:0;
     padding:0;
     box-sizing:border-box;
+
 }
+
+
+html{
+
+    scroll-behavior:smooth;
+
+}
+
 
 body{
-    background:#101418;
-    color:#F4F7F8;
-    font-family:"Segoe UI",Arial,Helvetica,sans-serif;
+
+    background:var(--bg);
+
+    color:var(--text);
+
+    font-family:
+        "Segoe UI",
+        Arial,
+        sans-serif;
+
 }
 
-.container{
+/*==================================================
+  Containers
+==================================================*/
+
+.container,
+.queue-container{
+
     width:100%;
+
     max-width:1500px;
-    margin:30px auto;
+
+    margin:auto;
+
+    padding:30px;
+
+}
+
+.main-content{
+
+    flex:1;
+
+    min-width:0;
+
+    padding:30px;
+
+    overflow:auto;
+
+    transition:margin .25s ease;
+
 }
 
 h1{
-    text-align:center;
-    margin-bottom:30px;
+
+    text-align:left;
+
+    margin-bottom:24px;
+
     font-size:42px;
+
     font-weight:700;
-    color:#7BE495;
+
+    color:var(--green-light);
+
     letter-spacing:.5px;
+
 }
 
-/* ==========================================================
-   Application Layout
-   ========================================================== */
+/*==================================================
+  Layout
+==================================================*/
 
 .app-layout{
 
@@ -41,29 +121,62 @@ h1{
 
 }
 
-.sidebar{
 
-    width:280px;
+.dashboard-grid{
 
-    background:#181D23;
+    display:grid;
 
-    border-right:1px solid #2E3742;
+    grid-template-columns:
+
+        360px
+        1fr;
+
+    gap:24px;
+
+    align-items:start;
+
+}
+
+
+.side-column,
+.main-column{
 
     display:flex;
 
     flex-direction:column;
 
+    gap:24px;
+
+}
+
+/*==================================================
+  Sidebar
+==================================================*/
+
+.sidebar{
+
+    width:280px;
+
+    background:var(--panel);
+
+    border-right:1px solid var(--border);
+
+    display:flex;
+
+    flex-direction:column;
+
+    height:100vh;
+
     position:sticky;
 
     top:0;
 
-    height:100vh;
+    overflow:hidden;
 
     transition:
-    width .25s ease,
-    background .25s ease,
-    border-color .25s ease;
-    overflow:hidden;
+        width .25s ease,
+        background .25s ease,
+        border-color .25s ease;
 
 }
 
@@ -73,23 +186,23 @@ h1{
 
 }
 
-.sidebar.collapsed .sidebar-header{
+.sidebar-header{
 
-    justify-content:flex-start;
+    display:flex;
 
-    padding:20px 0;
+    align-items:center;
 
-}
+    gap:15px;
 
-.sidebar.collapsed .sidebar-toggle{
+    padding:20px;
 
-    margin:0 auto;
+    border-bottom:1px solid var(--border);
 
 }
 
 .sidebar-header h2{
 
-    color:#7BE495;
+    color:var(--green-light);
 
     font-size:28px;
 
@@ -97,30 +210,7 @@ h1{
 
     white-space:nowrap;
 
-    opacity:1;
-
     transition:opacity .2s ease;
-
-}
-
-.sidebar.collapsed .sidebar-header h2{
-
-    display:none;
-
-}
-
-
-.sidebar-header{
-
-    padding:20px;
-
-    border-bottom:1px solid #2E3742;
-
-    display:flex;
-
-    align-items:center;
-
-    gap:15px;
 
 }
 
@@ -130,17 +220,27 @@ h1{
 
     height:42px;
 
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    padding:0;
+
     border:none;
 
     border-radius:10px;
 
-    background:#252D36;
+    background:var(--panel-light);
 
     color:white;
 
+    cursor:pointer;
+
     font-size:22px;
 
-    cursor:pointer;
+    line-height:1;
 
     transition:.2s;
 
@@ -150,10 +250,9 @@ h1{
 
 .sidebar-toggle:hover{
 
-    background:#33C759;
+    background:var(--green);
 
 }
-
 
 .sidebar-nav{
 
@@ -161,9 +260,9 @@ h1{
 
     flex-direction:column;
 
-    padding:18px;
-
     gap:10px;
+
+    padding:18px;
 
 }
 
@@ -175,15 +274,13 @@ h1{
 
     gap:14px;
 
-    text-decoration:none;
-
-    color:#D6DCE1;
-
     padding:14px 18px;
 
     border-radius:12px;
 
-    transition:.25s;
+    color:var(--text);
+
+    text-decoration:none;
 
     font-size:17px;
 
@@ -192,6 +289,8 @@ h1{
     white-space:nowrap;
 
     overflow:hidden;
+
+    transition:var(--transition);
 
 }
 
@@ -209,23 +308,45 @@ h1{
 
 .nav-text{
 
-    transition:opacity .2s;
+    transition:opacity .2s ease;
 
 }
 
 .sidebar-nav a:hover{
 
-    background:#252D36;
+    background:var(--panel-light);
 
-    color:#7BE495;
+    color:var(--green-light);
 
 }
 
 .sidebar-nav a.active{
 
-    background:#33C759;
+    background:var(--green);
 
     color:white;
+
+}
+
+/* Collapsed Sidebar */
+
+.sidebar.collapsed .sidebar-header{
+
+    justify-content:flex-start;
+
+    padding:20px 0;
+
+}
+
+.sidebar.collapsed .sidebar-toggle{
+
+    margin:0 auto;
+
+}
+
+.sidebar.collapsed .sidebar-header h2{
+
+    display:none;
 
 }
 
@@ -259,149 +380,285 @@ h1{
 
 }
 
-.main-content{
-
-    flex:1;
-
-    padding:30px;
-
-    overflow:auto;
-
-    transition:margin .25s ease;
-
-}
-/* ==========================================================
-   Dashboard Layout
-   ========================================================== */
-
-.dashboard-grid{
-    display:grid;
-    grid-template-columns:360px 1fr;
-    gap:24px;
-    align-items:start;
-}
-
-.side-column,
-.main-column{
-    display:flex;
-    flex-direction:column;
-    gap:24px;
-}
-
-/* ==========================================================
-   Cards
-   ========================================================== */
+/*==================================================
+  Cards
+==================================================*/
 
 .card{
-    background:#1B2128;
-    border:1px solid #2E3742;
+
+    position:relative;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255,255,255,.03),
+            rgba(255,255,255,.015)
+        ),
+        var(--panel);
+
+    border:1px solid rgba(255,255,255,.08);
+
     border-radius:16px;
-    padding:22px;
+
+    padding:24px;
+
     overflow:hidden;
 
-    box-shadow:0 10px 30px rgba(0,0,0,.35);
+    box-shadow:
+        0 10px 30px rgba(0,0,0,.35),
+        inset 0 1px 0 rgba(255,255,255,.05);
 
     transition:
-        transform .2s,
-        box-shadow .2s;
+        transform .2s ease,
+        box-shadow .2s ease,
+        border-color .2s ease;
+
+}
+
+.card::before{
+
+    content:"";
+
+    position:absolute;
+
+    top:0;
+    left:0;
+    right:0;
+
+    height:1px;
+
+    background:linear-gradient(
+        90deg,
+        transparent,
+        rgba(255,255,255,.15),
+        transparent
+    );
+
+    opacity:.7;
+
 }
 
 .card:hover{
+
     transform:translateY(-3px);
-    box-shadow:0 14px 40px rgba(0,0,0,.45);
+
+    border-color:rgba(123,228,149,.20);
+
+    box-shadow:
+        0 16px 42px rgba(0,0,0,.45),
+        inset 0 1px 0 rgba(255,255,255,.08);
+
 }
 
+/* Highlight primary dashboard card */
+
 .main-column .card:first-child{
-    border:2px solid #33C759;
+
+    border:2px solid var(--green);
+
+    box-shadow:
+        0 0 0 1px rgba(123,228,149,.15),
+        0 16px 42px rgba(0,0,0,.45);
+
 }
 
 .card h2{
-    color:#7BE495;
-    margin-bottom:18px;
-    font-size:24px;
-}
-
-.card h3{
-    color:#A9F5B6;
-    margin-bottom:10px;
-    margin-top:18px;
-}
-
-/* ==========================================================
-   Status Cards
-   ========================================================== */
-
-.status-card{
 
     display:flex;
-
-    justify-content:space-between;
 
     align-items:center;
 
-    padding:14px 18px;
+    gap:10px;
 
-    margin-bottom:12px;
+    color:var(--green-light);
 
-    border-radius:10px;
+    margin-bottom:20px;
 
-    background:#252D36;
+    padding-bottom:12px;
 
-    border:1px solid #303944;
+    border-bottom:1px solid rgba(255,255,255,.06);
 
-}
-
-.status-card span{
-
-    color:#BAC2CA;
-
-    font-size:14px;
-
-}
-
-.status-card strong{
-
-    color:#7BE495;
-
-    font-size:20px;
+    font-size:24px;
 
     font-weight:700;
 
+    letter-spacing:.02em;
+
 }
 
-/* Queue Lobby Status */
+.card h3{
+
+    color:#A9F5B6;
+
+    margin-top:18px;
+
+    margin-bottom:10px;
+
+    font-size:18px;
+
+    font-weight:600;
+
+}
+
+/*==================================================
+  Status Cards
+==================================================*/
+
+.status-card{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:14px 18px;
+    margin-bottom:12px;
+    border-radius:10px;
+    background:var(--panel-light);
+    border:1px solid var(--border);
+}
+
+.status-card span{
+    color:var(--muted);
+    font-size:14px;
+}
+
+.status-card strong{
+    color:var(--green-light);
+    font-size:20px;
+    font-weight:700;
+}
 
 .lobby-status{
-
     display:flex;
-
     flex-direction:column;
-
     align-items:flex-start;
-
     gap:10px;
-
 }
 
 .lobby-status strong{
-
     align-self:flex-end;
-
     font-size:22px;
 
 }
 
-/* ==========================================================
-   Buttons
-   ========================================================== */
+/*==================================================
+  Buttons
+==================================================*/
+
+button{
+
+    width:100%;
+
+    border:none;
+
+    border-radius:12px;
+
+    padding:13px 18px;
+
+    background:linear-gradient(
+        180deg,
+        var(--green-light),
+        var(--green)
+    );
+
+    color:white;
+
+    cursor:pointer;
+
+    font-size:15px;
+
+    font-weight:700;
+
+    letter-spacing:.02em;
+
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.18),
+        0 6px 14px rgba(0,0,0,.18);
+
+    transition:
+        transform .2s ease,
+        background .2s ease,
+        box-shadow .2s ease,
+        filter .2s ease;
+
+}
+
+button:hover{
+
+    transform:translateY(-2px);
+
+    filter:brightness(1.05);
+
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.22),
+        0 12px 24px rgba(0,0,0,.28);
+
+}
+
+button:active{
+
+    transform:translateY(0);
+
+    filter:brightness(.96);
+
+    box-shadow:
+        inset 0 2px 4px rgba(0,0,0,.20);
+
+}
+
+button:disabled{
+
+    opacity:.55;
+
+    cursor:not-allowed;
+
+    transform:none;
+
+    filter:none;
+
+    box-shadow:none;
+
+}
+
+.success{
+
+    background:linear-gradient(
+        180deg,
+        var(--green-light),
+        var(--green)
+    );
+
+}
+
+.success:hover{
+
+    filter:brightness(1.08);
+
+}
+
+.danger{
+
+    background:linear-gradient(
+        180deg,
+        #E85C5C,
+        var(--red)
+    );
+
+}
+
+.danger:hover{
+
+    filter:brightness(1.08);
+
+}
 
 .buttons{
 
     display:flex;
+
     gap:12px;
+
     flex-wrap:wrap;
 
-    margin-top:18px;
+    margin-top:20px;
 
 }
 
@@ -409,126 +666,51 @@ h1{
 
     flex:1;
 
+    margin:0;
+
 }
 
-button{
+.launch-form{
 
-    width:100%;
+    display:flex;
 
-    padding:13px;
+    justify-content:center;
 
-    border:none;
-    border-radius:10px;
+    margin-top:20px;
 
-    background:#33C759;
+}
 
-    color:white;
+.launch-button{
 
-    cursor:pointer;
+    width:auto !important;
+
+    min-width:160px;
+
+    padding:12px 24px;
 
     font-size:15px;
+
     font-weight:700;
 
-    transition:
-        background .2s,
-        transform .15s,
-        box-shadow .2s;
+    flex:none;
 
 }
 
-button:hover{
-
-    background:#28AE4A;
+.launch-button:hover{
 
     transform:translateY(-2px);
 
 }
 
-button:active{
+.launch-button:active{
 
     transform:scale(.98);
 
 }
 
-.success{
-
-    background:#2FBF5B;
-
-}
-
-.success:hover{
-
-    background:#28A94C;
-
-}
-
-.danger{
-
-    background:#D64545;
-
-}
-
-.danger:hover{
-
-    background:#B92F2F;
-
-}
-
-/* ==========================================================
-   Inputs
-   ========================================================== */
-
-input{
-
-    width:100%;
-
-    padding:12px;
-
-    border:none;
-    border-radius:8px;
-
-    background:#2B323B;
-
-    color:white;
-
-    font-size:15px;
-
-}
-select{
-
-    width:100%;
-
-    padding:12px;
-
-    border:none;
-
-    border-radius:8px;
-
-    background:#2B323B;
-
-    color:white;
-
-    font-size:15px;
-
-    cursor:pointer;
-
-}
-
-select:focus,
-input:focus{
-
-    outline:2px solid #33C759;
-
-}
-input::placeholder{
-
-    color:#8F98A3;
-
-}
-
-/* ==========================================================
-   Mission Tables
-   ========================================================== */
+/*==================================================
+  Tables
+==================================================*/
 
 .mission-table{
 
@@ -542,9 +724,9 @@ input::placeholder{
 
 .mission-table th{
 
-    background:#252D36;
+    background:var(--panel-light);
 
-    color:#7BE495;
+    color:var(--green-light);
 
     text-align:left;
 
@@ -558,7 +740,7 @@ input::placeholder{
 
     padding:14px;
 
-    border-bottom:1px solid #303944;
+    border-bottom:1px solid var(--border);
 
     vertical-align:middle;
 
@@ -573,13 +755,12 @@ input::placeholder{
 
 .mission-table tr:hover{
 
-    background:#222A33;
+    background:rgba(255,255,255,.03);
 
 }
-
-/* ==========================================================
-   Player Cards
-   ========================================================== */
+/*==================================================
+  Player Cards
+==================================================*/
 
 .player-card{
 
@@ -593,7 +774,7 @@ input::placeholder{
 
     padding:16px 0;
 
-    border-bottom:1px solid #303944;
+    border-bottom:1px solid var(--border);
 
 }
 
@@ -615,7 +796,7 @@ input::placeholder{
 
     font-size:21px;
 
-    color:white;
+    color:var(--text);
 
 }
 
@@ -623,13 +804,13 @@ input::placeholder{
 
     margin-top:6px;
 
-    color:#C6CDD3;
+    color:var(--muted);
 
 }
 
 .status{
 
-    color:#65F08A;
+    color:var(--green-light);
 
     font-weight:700;
 
@@ -637,19 +818,15 @@ input::placeholder{
 
 .wait{
 
-    color:#FFD166;
+    color:var(--yellow);
 
 }
-
-/* ==========================================================
-   Remove Button
-   ========================================================== */
 
 .remove{
 
     width:48px;
 
-    background:#D64545;
+    background:var(--red);
 
 }
 
@@ -659,15 +836,15 @@ input::placeholder{
 
 }
 
-/* ==========================================================
-   Lobby History
-   ========================================================== */
+/*==================================================
+  History Cards
+==================================================*/
 
 .history-card{
 
-    background:#252D36;
+    background:var(--panel-light);
 
-    border:1px solid #303944;
+    border:1px solid var(--border);
 
     border-radius:12px;
 
@@ -687,25 +864,90 @@ input::placeholder{
 
     margin:0 0 10px;
 
+    color:var(--green-light);
+
 }
 
 .history-card p{
 
     margin:8px 0;
 
-    color:#D3D9DF;
+    color:var(--text);
 
 }
 
 .history-card small{
 
-    color:#9AA5AF;
+    color:var(--muted);
 
 }
 
-/* ==========================================================
-   Queue Summary
-   ========================================================== */
+/*==================================================
+  Queue
+==================================================*/
+
+.queue-table{
+
+    width:100%;
+
+    table-layout:fixed;
+
+}
+
+.queue-table th,
+.queue-table td{
+
+    vertical-align:middle;
+
+}
+
+.queue-table th:nth-child(1),
+.queue-table td:nth-child(1){
+
+    width:70px;
+    text-align:center;
+
+}
+
+.queue-table th:nth-child(2){
+
+    width:28%;
+
+}
+
+.queue-table th:nth-child(3){
+
+    width:28%;
+
+}
+
+.queue-table th:nth-child(4),
+.queue-table td:nth-child(4){
+
+    width:90px;
+    text-align:center;
+
+}
+
+.queue-table th:nth-child(5),
+.queue-table td:nth-child(5){
+
+    width:170px;
+    text-align:center;
+
+}
+
+.queue-table td{
+
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+
+}
+
+/*==================================================
+  Queue Summary
+==================================================*/
 
 .queue-summary{
 
@@ -713,11 +955,11 @@ input::placeholder{
 
     padding:14px;
 
+    border:1px solid var(--border);
+
     border-radius:10px;
 
-    border:1px solid #303944;
-
-    background:#252D36;
+    background:var(--panel-light);
 
     text-align:center;
 
@@ -725,13 +967,187 @@ input::placeholder{
 
     font-weight:700;
 
-    color:#7BE495;
+    color:var(--green-light);
 
 }
 
-/* ==========================================================
-   Forms / HR
-   ========================================================== */
+/*==================================================
+  Queue Buttons
+==================================================*/
+
+.action-buttons{
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    gap:6px;
+
+}
+
+.action-buttons form{
+
+    flex:none;
+
+    margin:0;
+
+}
+
+.action-buttons button{
+
+    width:38px;
+
+    height:38px;
+    
+    min-height:38px;
+
+    padding:0;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    border-radius:8px;
+
+    font-size:16px;
+
+    font-weight:700;
+
+
+}
+
+.action-buttons button:hover{
+
+    transform:translateY(-2px);
+
+}
+
+.action-buttons button:active{
+
+    transform:scale(.98);
+
+}
+
+/*==================================================
+  Next Badge
+==================================================*/
+
+.next-badge{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    padding:4px 10px;
+
+    border-radius:999px;
+
+    background:var(--green);
+
+    color:white;
+
+    font-size:12px;
+
+    font-weight:700;
+
+    letter-spacing:.5px;
+
+    text-transform:uppercase;
+
+    box-shadow:0 0 10px rgba(51,199,89,.35);
+
+}
+
+.next-player{
+
+    background:rgba(51,199,89,.06);
+
+}
+/*==================================================
+  Progress Bars
+==================================================*/
+
+.progress-bar{
+
+    width:100%;
+
+    height:12px;
+
+    margin-top:12px;
+
+    background:var(--panel-light);
+
+    border:1px solid var(--border);
+
+    border-radius:999px;
+
+    overflow:hidden;
+
+}
+
+.progress-fill{
+
+    border-radius:999px;
+
+    height:100%;
+
+    background:linear-gradient(
+        90deg,
+        var(--green),
+        var(--green-light)
+    );
+
+    transition:width .4s ease;
+
+}
+
+.ready-text{
+
+    margin-top:12px;
+
+    color:var(--green-light);
+
+    font-weight:700;
+
+    text-align:center;
+
+}
+
+.waiting-text{
+
+    margin-top:12px;
+
+    color:var(--yellow);
+
+    font-weight:700;
+
+    text-align:center;
+
+}
+
+/*==================================================
+  Utilities
+==================================================*/
+
+hr{
+
+    border:none;
+
+    border-top:1px solid var(--border);
+
+    margin:20px 0;
+
+}
+
+/*==================================================
+  Forms
+==================================================*/
 
 form{
 
@@ -739,19 +1155,66 @@ form{
 
 }
 
-hr{
+input,
+select{
+
+    width:100%;
+
+    min-height:44px;
+
+    padding:12px;
 
     border:none;
 
-    border-top:1px solid #303944;
+    border-radius:10px;
 
-    margin:20px 0;
+    background:var(--panel-light);
+
+    color:white;
+
+    font-size:15px;
+
+    transition:
+        background .2s ease,
+        outline .2s ease,
+        box-shadow .2s ease;
 
 }
 
-/* ==========================================================
-   Scrollbar
-   ========================================================== */
+input:focus,
+select:focus{
+
+    outline:2px solid var(--green);
+
+    box-shadow:0 0 0 3px rgba(51,199,89,.15);
+
+}
+
+input::placeholder{
+
+    color:#9BA4AE;
+
+}
+
+/* Settings / inline form controls */
+
+.status-card input,
+.status-card select{
+
+    width:260px;
+    max-width:100%;
+
+}
+
+.status-card span{
+
+    font-weight:600;
+
+}
+
+/*==================================================
+  Scrollbar
+==================================================*/
 
 ::-webkit-scrollbar{
 
@@ -778,301 +1241,765 @@ hr{
     background:#556270;
 
 }
-/* ==========================================================
-   Settings Page
-   ========================================================== */
 
-.status-card input,
-.status-card select {
+/*==================================================
+  Mobile Navigation
+==================================================*/
 
-    width: 260px;
-
+.mobile-header{
+    display:none;
 }
 
-.status-card span {
-
-    font-weight: 600;
-
-}
-/* ==========================================================
-   Moderator Action Buttons
-   ========================================================== */
-
-.action-buttons{
+.mobile-sidebar-toggle{
 
     display:flex;
 
-    gap:6px;
-
     justify-content:center;
-
+    
     align-items:center;
+
+    width:42px;
+
+    height:42px;
+
+    padding:0;
+
+    border:none;
+
+    border-radius:10px;
+
+    background:var(--panel-light);
+
+    color:white;
+
+    font-size:22px;
+
+    line-height:1;
+
+    cursor:pointer;
+}
+
+.sidebar-overlay{
+    display:none;
+}
+
+@media (max-width:900px){
+
+    /* Sidebar */
+
+    .sidebar-toggle{
+        display:none;
+
+    }
+
+    .sidebar{
+        position:fixed;
+        top:70px;
+        left:-280px;
+        width:280px;
+        height:calc(100vh - 70px);
+        z-index:1000;
+        transition:left .3s ease;
+    }
+
+    .sidebar-header{
+        display:none;
+    }
+
+    .sidebar.mobile-open{
+        left:0;
+    }
+
+    .sidebar-overlay{
+        display:block;
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,.45);
+        opacity:0;
+        visibility:hidden;
+        transition:.3s;
+        z-index:999;
+    }
+
+    .sidebar-overlay.show{
+        opacity:1;
+        visibility:visible;
+    }
+
+    /* Header */
+
+    .mobile-header{
+        position:fixed;
+        top:0;
+        left:0;
+        right:0;
+        display:flex;
+        align-items:center;
+        gap:16px;
+        height:70px;
+        padding:0 20px;
+        background:var(--panel);
+        border-bottom:1px solid var(--border);
+        z-index:1001;
+    }
+
+    .mobile-header h2{
+        margin:0;
+        color:var(--green-light);
+        font-size:22px;
+    }
+
+    .mobile-sidebar-toggle{
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        width:42px;
+        height:42px;
+        padding:0;
+    }
+
+    /* Layout */
+
+    .main-content{
+        width:100%;
+        padding-top:90px;
+    }
+
+    .container,
+    .queue-container{
+        padding:15px;
+    }
+
+    .dashboard-grid{
+        display:grid;
+        grid-template-columns:1fr;
+        gap:16px;
+    }
+
+    .side-column,
+    .main-column{
+        gap:16px;
+    }
+
+    h1{
+        font-size:24px;
+        margin-bottom:18px;
+    }
+
+    .card{
+        padding:14px;
+    }
+
+    .card h2{
+        font-size:20px;
+    }
+
+    .status-card{
+        display:flex;
+        flex-direction:column;
+        align-items:flex-start;
+        gap:5px;
+        padding:8px 10px;
+    }
+
+    .status-card input,
+    .status-card select{
+        width:100%;
+    }
+
+    .queue-stats{
+        display:flex;
+        gap:8px;
+        margin-bottom:10px;
+    }
+
+    .queue-stats .status-card{
+        flex:1;
+    }
+
+    .queue-summary{
+        font-size:14px;
+        padding:10px;
+    }
+
+    .player-card{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:8px;
+    }
+
+    .remove{
+        width:100%;
+    }
+
+    .launch-button{
+        min-width:120px;
+        width:auto;
+        padding:6px 14px;
+        font-size:12px;
+        margin:8px auto 0;
+        display:block;
+    }
+
+    .history-card{
+        padding:10px;
+    }
+
+    .history-card h3{
+        font-size:16px;
+    }
+
+    .lobby-status{
+        gap:5px;
+    }
+
+    .lobby-status strong{
+        font-size:15px;
+        align-self:flex-end;
+    }
+
+    .progress-bar{
+        margin-top:8px;
+    }
+
+    .ready-text,
+    .waiting-text{
+        margin-top:8px;
+        font-size:14px;
+    }
+
+    /* Tables */
+
+    .mission-table:not(.queue-table){
+        width:100%;
+        table-layout:fixed;
+    }
+
+    .mission-table:not(.queue-table) th,
+    .mission-table:not(.queue-table) td{
+        padding:5px 3px;
+        font-size:11px;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+    }
+
+    .queue-table{
+        width:100%;
+        table-layout:fixed;
+        border-collapse:collapse;
+    }
+
+    .queue-table th,
+    .queue-table td{
+        padding:3px 2px;
+        font-size:10px;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+        text-align:center;
+        vertical-align:middle;
+    }
+
+    /* NEXT / Number */
+    .queue-table th:nth-child(1),
+    .queue-table td:nth-child(1){
+        width:7%;
+    }
+
+    /* YouTube */
+    .queue-table th:nth-child(2),
+    .queue-table td:nth-child(2){
+        width:25%;
+    }
+
+    /* Trainer */
+    .queue-table th:nth-child(3),
+    .queue-table td:nth-child(3){
+        width:25%;
+    }
+
+    /* Waiting */
+    .queue-table th:nth-child(4),
+    .queue-table td:nth-child(4){
+        width:15%;
+    }
+
+    /* Actions */
+    .queue-table th:nth-child(5),
+    .queue-table td:nth-child(5){
+        width:28%;
+    }
+
+    .queue-table th{
+        font-size:9px;
+        font-weight:700;
+    }
+
+    .queue-table td:first-child{
+        text-align:center;
+    }
+
+    /* Queue Buttons */
+
+    .action-buttons{
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        gap:1px;
+        flex-wrap:nowrap;
+    }
+
+    .action-buttons button{
+        width:18px !important;
+        height:18px !important;
+        min-width:18px !important;
+        min-height:18px !important;
+        padding:0 !important;
+        margin:0;
+        font-size:8px !important;
+        border-radius:3px;
+        flex:none;
+    }
+
+    /* Next Badge */
+
+    .next-badge{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-width:18px;
+        height:12px;
+        padding:0 4px;
+        font-size:6px;
+        font-weight:700;
+        border-radius:999px;
+        line-height:1;
+    }
+}
+
+/* ==========================================================
+   Sidebar Layout Overhaul
+   ========================================================== */
+
+.sidebar{
+    display:flex;
+    flex-direction:column;
+}
+
+.sidebar-header{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding-bottom:20px;
+}
+
+.sidebar-brand{
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+}
+
+.sidebar-brand h2{
+    margin:0;
+    font-size:1.2rem;
+    font-weight:700;
+    color:var(--text);
+    white-space:nowrap;
+}
+
+.sidebar-subtitle{
+    margin-top:2px;
+    font-size:.75rem;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--muted);
+}
+
+.sidebar-nav{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+}
+
+.sidebar-nav a{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:12px 14px;
+    border-radius:var(--radius);
+    transition:all .2s ease;
+}
+
+.sidebar-nav a:hover{
+    transform:translateX(4px);
+}
+
+.nav-icon{
+    width:24px;
+    text-align:center;
+    font-size:1rem;
+    flex-shrink:0;
+}
+
+.nav-text{
+    white-space:nowrap;
+}
+
+.sidebar-divider{
+    height:1px;
+    margin:18px 0;
+    background:rgba(255,255,255,.08);
+}
+
+.sidebar-spacer{
+    flex:1;
+}
+
+.sidebar-user{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+}
+
+.sidebar-user-card{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:14px;
+    border-radius:var(--radius);
+    background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.05);
+}
+
+.sidebar-avatar{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:44px;
+    height:44px;
+    border-radius:50%;
+    background:var(--accent);
+    color:#fff;
+    font-size:1.1rem;
+    flex-shrink:0;
+}
+
+.sidebar-user-details{
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+}
+
+.user-name{
+    font-weight:600;
+    color:var(--text);
+}
+
+.user-role{
+    font-size:.8rem;
+    color:var(--muted);
+}
+
+.sidebar-logout{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:12px 14px;
+    border-radius:var(--radius);
+    color:#ff7d7d;
+    transition:all .2s ease;
+}
+
+.sidebar-logout:hover{
+    background:rgba(255,0,0,.08);
+    color:#ff5c5c;
+    transform:translateX(4px);
+}
+
+.sidebar.collapsed .sidebar-brand,
+.sidebar.collapsed .sidebar-subtitle,
+.sidebar.collapsed .user-name,
+.sidebar.collapsed .user-role{
+    display:none;
+}
+
+.sidebar.collapsed .sidebar-user-card{
+    justify-content:center;
+}
+
+.sidebar.collapsed .sidebar-logout{
+    justify-content:center;
+}
+
+.sidebar.collapsed .sidebar-divider{
+    margin:14px 0;
+}
+
+@media (max-width:900px){
+
+    .sidebar-user{
+        margin-top:24px;
+    }
 
 }
 
-.action-buttons form{
+/* ==========================================================
+   Pocket Queue Premium Sidebar
+   ========================================================== */
 
-    flex:none;
+.sidebar{
+    backdrop-filter:blur(18px);
+    border-right:1px solid rgba(255,255,255,.06);
+    box-shadow:
+        0 0 30px rgba(0,0,0,.25),
+        inset -1px 0 rgba(255,255,255,.03);
+}
+
+.sidebar-header{
+    position:relative;
+    margin-bottom:8px;
+}
+
+.sidebar-header::after{
+    content:"";
+    position:absolute;
+    left:-20px;
+    right:-20px;
+    bottom:-14px;
+    height:1px;
+    background:linear-gradient(
+        90deg,
+        transparent,
+        rgba(255,255,255,.08),
+        transparent
+    );
+}
+
+.sidebar-brand h2{
+    font-size:1.2rem;
+    letter-spacing:-.02em;
+}
+
+.sidebar-subtitle{
+    font-size:.72rem;
+    letter-spacing:.18em;
+    opacity:.75;
+}
+
+.sidebar-nav{
+    margin-top:18px;
+}
+
+.sidebar-nav a{
+    position:relative;
+    overflow:hidden;
+    font-weight:500;
+}
+
+.sidebar-nav a::before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:8px;
+    bottom:8px;
+    width:4px;
+    border-radius:999px;
+    background:var(--accent);
+    opacity:0;
+    transform:scaleY(.2);
+    transition:.25s;
+}
+
+.sidebar-nav a::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:linear-gradient(
+        90deg,
+        rgba(255,255,255,.05),
+        transparent
+    );
+    opacity:0;
+    transition:.25s;
+}
+
+.sidebar-nav a:hover{
+
+    background:rgba(255,255,255,.05);
+
+}
+
+.sidebar-nav a:hover::after{
+
+    opacity:1;
+
+}
+
+.sidebar-nav a.active{
+
+    background:rgba(255,255,255,.08);
+
+}
+
+.sidebar-nav a.active::before{
+
+    opacity:1;
+    transform:scaleY(1);
+
+}
+
+.nav-icon{
+
+    transition:.25s;
+    font-size:1.05rem;
+
+}
+
+.sidebar-nav a:hover .nav-icon{
+
+    transform:scale(1.15);
+
+}
+
+.sidebar-nav a.active .nav-icon{
+
+    transform:scale(1.15);
+
+}
+
+.sidebar-user-card{
+
+    position:relative;
+    overflow:hidden;
+    transition:.25s;
+
+}
+
+.sidebar-user-card::before{
+
+    content:"";
+    position:absolute;
+    inset:0;
+    background:linear-gradient(
+        135deg,
+        rgba(255,255,255,.06),
+        transparent 60%
+    );
+    pointer-events:none;
+
+}
+
+.sidebar-user-card:hover{
+
+    transform:translateY(-2px);
+
+}
+
+.sidebar-avatar{
+
+    box-shadow:
+        0 0 18px rgba(0,255,170,.25);
+
+}
+
+.user-name{
+
+    font-size:.96rem;
+
+}
+
+.user-role{
+
+    letter-spacing:.05em;
+    text-transform:uppercase;
+}
+
+.sidebar-logout{
+
+    justify-content:flex-start;
+    font-weight:600;
+
+}
+
+.sidebar-logout:hover{
+
+    box-shadow:0 0 18px rgba(255,0,0,.15);
+
+}
+
+.sidebar.collapsed .sidebar-nav a{
+
+    justify-content:center;
+    padding-inline:0;
+
+}
+
+.sidebar.collapsed .sidebar-header{
+
+    justify-content:center;
+
+}
+
+.sidebar.collapsed .sidebar-avatar{
 
     margin:0;
 
 }
 
-.action-buttons button{
+.sidebar.collapsed .sidebar-nav a:hover{
 
-    width:38px;
-
-    height:38px;
-
-    min-height:38px;
-
-    padding:0;
-
-    display:flex;
-
-    justify-content:center;
-
-    align-items:center;
-
-    border-radius:8px;
-
-    font-size:16px;
-
-    font-weight:700;
+    transform:none;
 
 }
 
-.action-buttons .danger{
+.sidebar.collapsed .sidebar-nav a::before{
 
-    background:#D64545;
+    left:50%;
+    width:26px;
+    height:3px;
+    top:auto;
+    bottom:3px;
+    transform:
+        translateX(-50%)
+        scaleX(.2);
 
 }
 
-.action-buttons .success{
+.sidebar.collapsed .sidebar-nav a.active::before{
 
-    background:#2FBF5B;
+    transform:
+        translateX(-50%)
+        scaleX(1);
 
 }
-/* ==========================================================
-   Mobile
-   ========================================================== */
 
-@media (max-width:1100px){
+.sidebar.collapsed .sidebar-toggle{
 
-    .dashboard-grid{
+    margin:0 auto;
 
-        grid-template-columns:1fr;
+}
 
+/* =====================================================
+   History Page
+===================================================== */
+
+.history-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 900px) {
+    .history-stats {
+        grid-template-columns: repeat(2, 1fr);
     }
-
 }
 
-@media (max-width:700px){
-
-    .container{
-
-        width:96%;
-        margin:15px auto;
-
+@media (max-width: 600px) {
+    .history-stats {
+        grid-template-columns: 1fr;
     }
-
-    h1{
-
-        font-size:28px;
-
-    }
-
-    .card{
-
-        padding:16px;
-
-    }
-
-    .card h2{
-
-        font-size:20px;
-
-    }
-
-    .buttons{
-
-        flex-direction:column;
-
-    }
-
-    .buttons form{
-
-        width:100%;
-
-    }
-
-    button{
-
-        width:100%;
-
-        min-height:54px;
-
-        font-size:17px;
-
-    }
-
-    .status-card{
-
-    flex-direction:column;
-
-    align-items:flex-start;
-
-    gap:10px;
-
 }
 
-.status-card input,
-.status-card select{
-
-    width:100%;
-
-}
-
-    .mission-table{
-
-        display:block;
-
-        overflow-x:auto;
-
-        white-space:nowrap;
-
-    }
-
-    .player-card{
-
-        flex-direction:column;
-
-        align-items:flex-start;
-
-        gap:12px;
-
-    }
-
-    .remove{
-
-        width:100%;
-
-    }
-
-/* ==========================================================
-   Launch Button
-   ========================================================== */
-
-.launch-form{
-
-    display:flex;
-
-    justify-content:center;
-
-    margin-top:18px;
-
-}
-
-.launch-button{
-
-    width:auto !important;
-
-    min-width:180px;
-
-    padding:12px 24px;
-
-    flex:none;
-
-}
-/* ==========================================================
-   Lobby Progress Bar
-   ========================================================== */
-
-.progress-bar{
-
-    width:100%;
-
-    height:12px;
-
-    margin-top:12px;
-
-    background:#252D36;
-
-    border:1px solid #303944;
-
-    border-radius:999px;
-
-    overflow:hidden;
-
-}
-
-.progress-fill{
-
-    height:100%;
-
-    background:linear-gradient(
-        90deg,
-        #33C759,
-        #7BE495
-    );
-
-    border-radius:999px;
-
-    transition:width .4s ease;
-
-}
-
-.ready-text{
-
-    margin-top:12px;
-
-    color:#7BE495;
-
-    font-weight:700;
-
-    text-align:center;
-
-}
-
-.waiting-text{
-
-    margin-top:12px;
-
-    color:#F7C948;
-
-    font-weight:700;
-
-    text-align:center;
-
-}
-/* ==========================================================
-   Next Player Badge
-   ========================================================== */
-
-.next-badge{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    padding:4px 10px;
-
-    border-radius:999px;
-
-    background:#33C759;
-
-    color:#FFFFFF;
-
-    font-size:12px;
-
-    font-weight:700;
-
-    letter-spacing:.5px;
-
-    text-transform:uppercase;
-
-    box-shadow:0 0 10px rgba(51,199,89,.35);
-
-}

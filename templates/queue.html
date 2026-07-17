@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<div class="container">
+<div class="queue-container">
 
     <h1>👥 Queue Management</h1>
 
@@ -53,11 +53,8 @@
                 <table class="mission-table">
 
                     <tr>
-
                         <th>YouTube</th>
-
                         <th>Trainer</th>
-
                     </tr>
 
                     {% for player in current %}
@@ -106,25 +103,31 @@
 
                 <h2>👥 Waiting Queue</h2>
 
-                <div class="status-card">
+                <!-- Queue Stats -->
 
-                    <span>Players Waiting</span>
+                <div class="queue-stats">
 
-                    <strong>{{ queue_size }}</strong>
+                    <div class="status-card">
 
-                </div>
+                        <span>Players Waiting</span>
 
-                <div class="status-card">
+                        <strong>{{ queue_size }}</strong>
 
-                    <span>Estimated Wait</span>
+                    </div>
 
-                    <strong>{{ estimated_wait }} min</strong>
+                    <div class="status-card">
+
+                        <span>Estimated Wait</span>
+
+                        <strong>{{ estimated_wait }} min</strong>
+
+                    </div>
 
                 </div>
 
                 {% if waiting %}
 
-                <table class="mission-table">
+                <table class="mission-table queue-table">
 
                     <tr>
 
@@ -148,27 +151,27 @@
 
                             {% if loop.first %}
 
-                                 <span class="next-badge">NEXT</span>
+                                <span class="next-badge">NEXT</span>
 
                             {% else %}
 
                                 {{ loop.index }}
 
                             {% endif %}
-               
+
                         </td>
 
                         <td>
 
-                              {% if loop.first %}
-                                
-                                 <strong>{{ player.youtube }}</strong>
+                            {% if loop.first %}
 
-                              {% else %}
-                                  
-                                 {{ player.youtube }}
+                                <strong>{{ player.youtube }}</strong>
 
-                              {% endif %}
+                            {% else %}
+
+                                {{ player.youtube }}
+
+                            {% endif %}
 
                         </td>
 

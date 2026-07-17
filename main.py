@@ -316,6 +316,43 @@ def queue_page(request: Request):
     )
 
 # -------------------------
+# History
+# -------------------------
+
+@app.get("/history")
+def history_page(request: Request):
+
+    return templates.TemplateResponse(
+        request=request,
+        name="history.html",
+        context={
+            "title": "History",
+
+            "history": history.get_history(),
+
+            "total_lobbies": history.total_lobbies(),
+
+            "players_hosted": history.total_players(),
+
+            "average_players": history.average_players(),
+
+            "latest_lobby": history.latest_lobby(),
+        }
+    )
+
+@app.post("/history/delete")
+def delete_history(
+    index: int = Form(...)
+):
+
+    history.delete_lobby(index)
+
+    return RedirectResponse(
+        "/history",
+        status_code=303
+    )
+
+# -------------------------
 # Settings
 # -------------------------
 

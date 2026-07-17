@@ -2,7 +2,7 @@
     "creator_name": "Pocket queue",
     "queue_name": "Community Queue",
     "player_label": "Player",
-    "party_size": 2,
+    "party_size": 1,
     "min_party_size": 1,
     "max_party_size": 10,
     "estimated_match_length": 4,

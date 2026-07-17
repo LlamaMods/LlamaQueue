@@ -11,20 +11,32 @@ class QueueManager:
 
         os.makedirs("database", exist_ok=True)
 
+        self.players = []
+        self.lobby_size = 5
+        self.queue_open = True
+
         if not os.path.exists(self.file):
-
-            self.players = []
-            self.lobby_size = 5
-            self.queue_open = True
-
             self.save()
 
         self.load()
 
     def load(self):
 
-        with open(self.file, "r") as f:
-            data = json.load(f)
+        try:
+
+            with open(self.file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+        except (FileNotFoundError, json.JSONDecodeError):
+
+            data = {
+                "players": [],
+                "lobby_size": 5,
+                "queue_open": True
+            }
+
+            with open(self.file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
 
         self.players = data.get("players", [])
         self.lobby_size = data.get("lobby_size", 5)
@@ -38,7 +50,7 @@ class QueueManager:
             "queue_open": self.queue_open
         }
 
-        with open(self.file, "w") as f:
+        with open(self.file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
 
     def is_open(self):
