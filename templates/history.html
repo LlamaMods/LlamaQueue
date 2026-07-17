@@ -115,7 +115,7 @@
 
                         <td>{{ player.youtube }}</td>
 
-                        <td>{{ player.trainer if player.trainer else "—" }}</td>
+                        <td>{{ player.player if player.player else "—" }}</td>
 
                     </tr>
 
@@ -162,7 +162,7 @@
                 style="display:none;"
             >
 {% for player in lobby.players %}
-{{ player.youtube }} - {{ player.trainer if player.trainer else "—" }}
+{{ player.youtube }} - {{ player.player if player.player else "—" }}
 {% endfor %}
             </div>
 

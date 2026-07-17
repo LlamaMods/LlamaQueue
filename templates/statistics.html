@@ -1,0 +1,1530 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="stats-page">
+
+    <div class="page-header">
+
+        <div>
+
+            <h1>📊 {{ settings.queue_name }} Analytics</h1>
+
+            <p>
+                Track queue performance, player activity and lobby statistics.
+            </p>
+
+        </div>
+
+        <div class="header-badge">
+
+            <span>Live Statistics</span>
+
+        </div>
+
+    </div>
+
+
+    <!-- ============================= -->
+    <!-- Overview Cards -->
+    <!-- ============================= -->
+
+    <div class="stats-grid">
+
+        <div class="stat-card primary">
+
+            <div class="stat-icon">
+                📜
+            </div>
+
+            <div class="stat-content">
+
+                <span class="stat-label">
+
+                    Total Lobbies
+
+                </span>
+
+                <h2>
+
+                    {{ stats.total_lobbies }}
+
+                </h2>
+
+                <small>
+
+                    Recorded sessions
+
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="stat-card success">
+
+            <div class="stat-icon">
+
+                👥
+
+            </div>
+
+            <div class="stat-content">
+
+                <span class="stat-label">
+
+                    Players Served
+
+                </span>
+
+                <h2>
+
+                    {{ stats.total_players }}
+
+                </h2>
+
+                <small>
+
+                    Across all queues
+
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="stat-card warning">
+
+            <div class="stat-icon">
+
+                ⭐
+
+            </div>
+
+            <div class="stat-content">
+
+                <span class="stat-label">
+
+                    Unique Players
+
+                </span>
+
+                <h2>
+
+                    {{ stats.unique_players }}
+
+                </h2>
+
+                <small>
+
+                    Individual players
+
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="stat-card info">
+
+            <div class="stat-icon">
+
+                📈
+
+            </div>
+
+            <div class="stat-content">
+
+                <span class="stat-label">
+
+                    Average Lobby Size
+
+                </span>
+
+                <h2>
+
+                    {{ "%.1f"|format(stats.average_players) }}
+
+                </h2>
+
+                <small>
+
+                    Players per lobby
+
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ============================= -->
+    <!-- Dashboard Row -->
+    <!-- ============================= -->
+
+    <div class="analytics-row">
+
+        <div class="analytics-card large">
+
+            <div class="card-header">
+
+                <h2>
+
+                    📊 Queue Overview
+
+                </h2>
+
+            </div>
+
+            <div class="overview-grid">
+
+                <div class="overview-item">
+
+                    <span>
+
+                        Total Lobbies
+
+                    </span>
+
+                    <strong>
+
+                        {{ stats.total_lobbies }}
+
+                    </strong>
+
+                </div>
+
+                <div class="overview-item">
+
+                    <span>
+
+                        Total Players
+
+                    </span>
+
+                    <strong>
+
+                        {{ stats.total_players }}
+
+                    </strong>
+
+                </div>
+
+                <div class="overview-item">
+
+                    <span>
+
+                        Unique Players
+
+                    </span>
+
+                    <strong>
+
+                        {{ stats.unique_players }}
+
+                    </strong>
+
+                </div>
+
+                <div class="overview-item">
+
+                    <span>
+
+                        Average Lobby
+
+                    </span>
+
+                    <strong>
+
+                        {{ "%.1f"|format(stats.average_players) }}
+
+                    </strong>
+
+                </div>
+
+                <div class="overview-item">
+
+                    <span>
+
+                        Latest Lobby
+
+                    </span>
+
+                    <strong>
+
+                        {{ stats.latest_lobby.date ~ " " ~ stats.latest_lobby.time if stats.latest_lobby else "None" }}
+
+                    </strong>
+
+                </div>
+
+                <div class="overview-item">
+
+                    <span>
+
+                        Queue Status
+
+                    </span>
+
+                    <strong class="online">
+
+                        ● Healthy
+
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="analytics-card">
+
+            <div class="card-header">
+
+                <h2>
+
+                    ❤️ Queue Health
+
+                </h2>
+
+            </div>
+
+            <div class="health-panel">
+
+                <div class="health-score">
+
+                    98%
+
+                </div>
+
+                <div class="health-label">
+
+                    Excellent
+
+                </div>
+
+                <div class="progress">
+
+                    <div
+                        class="progress-fill"
+                        style="width:98%">
+
+                    </div>
+
+                </div>
+
+                <ul class="health-list">
+
+                    <li>
+
+                        ✔ Stable Queue
+
+                    </li>
+
+                    <li>
+
+                        ✔ History Enabled
+
+                    </li>
+
+                    <li>
+
+                        ✔ Statistics Online
+
+                    </li>
+
+                    <li>
+
+                        ✔ Data Loaded
+
+                    </li>
+
+                </ul>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ============================= -->
+    <!-- Session Summary -->
+    <!-- ============================= -->
+
+    <div class="analytics-card">
+
+        <div class="card-header">
+
+            <h2>
+
+                🚀 Session Summary
+
+            </h2>
+
+        </div>
+
+        <div class="summary-grid">
+
+            <div class="summary-box">
+
+                <h3>
+
+                    {{ stats.total_lobbies }}
+
+                </h3>
+
+                <span>
+
+                    Lobbies Completed
+
+                </span>
+
+            </div>
+
+            <div class="summary-box">
+
+                <h3>
+
+                    {{ stats.total_players }}
+
+                </h3>
+
+                <span>
+
+                    Players Helped
+
+                </span>
+
+            </div>
+
+            <div class="summary-box">
+
+                <h3>
+
+                    {{ stats.unique_players }}
+
+                </h3>
+
+                <span>
+
+                    Returning Players
+
+                </span>
+
+            </div>
+
+            <div class="summary-box">
+
+                <h3>
+
+                    {{ "%.1f"|format(stats.average_players) }}
+
+                </h3>
+
+                <span>
+
+                    Avg Lobby Size
+
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+        <!-- ============================= -->
+    <!-- Top Players & Queue Insights -->
+    <!-- ============================= -->
+
+    <div class="analytics-row">
+
+        <div class="analytics-card large">
+
+            <div class="card-header">
+
+                <h2>
+
+                    🏆 Top Players
+
+                </h2>
+
+                <span>
+
+                    All Time
+
+                </span>
+
+            </div>
+
+            <table class="stats-table">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Rank</th>
+                        <th>Player</th>
+                        <th>Lobbies</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% if stats.top_players %}
+
+                        {% for player in stats.top_players %}
+
+                        <tr>
+
+                            <td>
+
+                                {% if loop.index == 1 %}
+                                    🥇
+                                {% elif loop.index == 2 %}
+                                    🥈
+                                {% elif loop.index == 3 %}
+                                    🥉
+                                {% else %}
+                                    #{{ loop.index }}
+                                {% endif %}
+
+                            </td>
+
+                            <td>
+
+                                {{ player.youtube }}
+
+                            </td>
+
+                            <td>
+
+                                {{ player.plays }}
+
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <tr>
+
+                            <td colspan="3">
+
+                                No statistics available yet.
+
+                            </td>
+
+                        </tr>
+
+                    {% endif %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+
+
+
+        <div class="analytics-card">
+
+            <div class="card-header">
+
+                <h2>
+
+                    💡 Queue Insights
+
+                </h2>
+
+            </div>
+
+            <div class="insight-list">
+
+                <div class="insight-item">
+
+                    <span>
+
+                        👥 Average Lobby Size
+
+                    </span>
+
+                    <strong>
+
+                        {{ "%.1f"|format(stats.average_players) }}
+
+                    </strong>
+
+                </div>
+
+                <div class="insight-item">
+
+                    <span>
+
+                        ⭐ Unique Players
+
+                    </span>
+
+                    <strong>
+
+                        {{ stats.unique_players }}
+
+                    </strong>
+
+                </div>
+
+                <div class="insight-item">
+
+                    <span>
+
+                        📜 Total Sessions
+
+                    </span>
+
+                    <strong>
+
+                        {{ stats.total_lobbies }}
+
+                    </strong>
+
+                </div>
+
+                <div class="insight-item">
+
+                    <span>
+
+                        🚀 Players Served
+
+                    </span>
+
+                    <strong>
+
+                        {{ stats.total_players }}
+
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+
+
+    <!-- ============================= -->
+    <!-- Recent Players -->
+    <!-- ============================= -->
+
+    <div class="analytics-card">
+
+        <div class="card-header">
+
+            <h2>
+
+                👥 Recently Seen Players
+
+            </h2>
+
+        </div>
+
+        <div class="recent-player-grid">
+
+            {% if stats.recent_players %}
+
+                {% for player in stats.recent_players %}
+
+                <div class="recent-player-card">
+
+                    <div class="recent-avatar">
+
+                        👤
+
+                    </div>
+
+                    <div class="recent-details">
+
+                        <strong>
+
+                            {{ player }}
+
+                        </strong>
+
+                        <span>
+
+                            Recently appeared in queue history
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+                {% endfor %}
+
+            {% else %}
+
+                <div class="empty-state">
+
+                    No recent players available.
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+
+
+
+
+    <!-- ============================= -->
+    <!-- Recent Lobby Activity -->
+    <!-- ============================= -->
+
+    <div class="analytics-card">
+
+        <div class="card-header">
+
+            <h2>
+
+                📜 Recent Lobby Activity
+
+            </h2>
+
+        </div>
+
+        <div class="activity-feed">
+
+            <div class="activity-item">
+
+                <div class="activity-icon">
+
+                    🚀
+
+                </div>
+
+                <div class="activity-content">
+
+                    <strong>
+
+                        Latest Lobby
+
+                    </strong>
+
+                    <span>
+
+                        {{ stats.latest_lobby.date ~ " at " ~ stats.latest_lobby.time if stats.latest_lobby else "No lobbies recorded yet." }}
+
+                    </span>
+
+                </div>
+
+            </div>
+
+            <div class="activity-item">
+
+                <div class="activity-icon">
+
+                    👥
+
+                </div>
+
+                <div class="activity-content">
+
+                    <strong>
+
+                        Total Players Processed
+
+                    </strong>
+
+                    <span>
+
+                        {{ stats.total_players }}
+
+                    </span>
+
+                </div>
+
+            </div>
+
+            <div class="activity-item">
+
+                <div class="activity-icon">
+
+                    📊
+
+                </div>
+
+                <div class="activity-content">
+
+                    <strong>
+
+                        Queue Average
+
+                    </strong>
+
+                    <span>
+
+                        {{ "%.1f"|format(stats.average_players) }} players per lobby
+
+                    </span>
+
+                </div>
+
+            </div>
+
+            <div class="activity-item">
+
+                <div class="activity-icon">
+
+                    ⭐
+
+                </div>
+
+                <div class="activity-content">
+
+                    <strong>
+
+                        Unique Players
+
+                    </strong>
+
+                    <span>
+
+                        {{ stats.unique_players }}
+
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+        <!-- ============================= -->
+    <!-- Performance Dashboard -->
+    <!-- ============================= -->
+
+    <div class="analytics-row">
+
+        <div class="analytics-card large">
+
+            <div class="card-header">
+
+                <h2>📈 Performance Overview</h2>
+
+                <span>Today</span>
+
+            </div>
+
+            <div class="graph-placeholder">
+
+                <div class="graph-header">
+
+                    <span>Lobby Activity</span>
+
+                    <strong>Last 30 Sessions</strong>
+
+                </div>
+
+                <div class="fake-chart">
+
+                    {% for i in range(30) %}
+
+                    <div class="chart-bar"
+                         style="height: {{ ((i * 13) % 75) + 25 }}%;"></div>
+
+                    {% endfor %}
+
+                </div>
+
+                <div class="graph-footer">
+
+                    <span>Oldest</span>
+
+                    <span>Newest</span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="analytics-card">
+
+            <div class="card-header">
+
+                <h2>⚡ Live Metrics</h2>
+
+            </div>
+
+            <div class="metric-list">
+
+                <div class="metric-item">
+
+                    <span>Queue Status</span>
+
+                    <strong class="online">Online</strong>
+
+                </div>
+
+                <div class="metric-item">
+
+                    <span>History</span>
+
+                    <strong>Recording</strong>
+
+                </div>
+
+                <div class="metric-item">
+
+                    <span>Statistics</span>
+
+                    <strong>Updating</strong>
+
+                </div>
+
+                <div class="metric-item">
+
+                    <span>Database</span>
+
+                    <strong>Healthy</strong>
+
+                </div>
+
+                <div class="metric-item">
+
+                    <span>Average Lobby</span>
+
+                    <strong>{{ "%.1f"|format(stats.average_players) }}</strong>
+
+                </div>
+
+                <div class="metric-item">
+
+                    <span>Unique Players</span>
+
+                    <strong>{{ stats.unique_players }}</strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+
+
+    <!-- ============================= -->
+    <!-- Milestones -->
+    <!-- ============================= -->
+
+    <div class="analytics-card">
+
+        <div class="card-header">
+
+            <h2>🎯 Creator Milestones</h2>
+
+        </div>
+
+        <div class="milestone-grid">
+
+            <div class="milestone-card">
+
+                <h3>100 Players</h3>
+
+                <div class="progress">
+
+                    <div class="progress-fill"
+                         style="width: {{ [stats.total_players,100]|min }}%;"></div>
+
+                </div>
+
+                <small>
+
+                    {{ stats.total_players }}/100
+
+                </small>
+
+            </div>
+
+            <div class="milestone-card">
+
+                <h3>250 Players</h3>
+
+                <div class="progress">
+
+                    <div class="progress-fill"
+                         style="width: {{ (stats.total_players/250*100) if stats.total_players < 250 else 100 }}%;"></div>
+
+                </div>
+
+                <small>
+
+                    {{ stats.total_players }}/250
+
+                </small>
+
+            </div>
+
+            <div class="milestone-card">
+
+                <h3>500 Players</h3>
+
+                <div class="progress">
+
+                    <div class="progress-fill"
+                         style="width: {{ (stats.total_players/500*100) if stats.total_players < 500 else 100 }}%;"></div>
+
+                </div>
+
+                <small>
+
+                    {{ stats.total_players }}/500
+
+                </small>
+
+            </div>
+
+            <div class="milestone-card">
+
+                <h3>1000 Players</h3>
+
+                <div class="progress">
+
+                    <div class="progress-fill"
+                         style="width: {{ (stats.total_players/1000*100) if stats.total_players < 1000 else 100 }}%;"></div>
+
+                </div>
+
+                <small>
+
+                    {{ stats.total_players }}/1000
+
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+
+
+    <!-- ============================= -->
+    <!-- Achievements -->
+    <!-- ============================= -->
+
+    <div class="analytics-card">
+
+        <div class="card-header">
+
+            <h2>🏅 Queue Achievements</h2>
+
+        </div>
+
+        <div class="achievement-grid">
+
+            <div class="achievement-card">
+
+                <div class="achievement-icon">
+
+                    🚀
+
+                </div>
+
+                <h3>
+
+                    First Lobby
+
+                </h3>
+
+                <p>
+
+                    {% if stats.total_lobbies > 0 %}
+                        Unlocked
+                    {% else %}
+                        Locked
+                    {% endif %}
+
+                </p>
+
+            </div>
+
+            <div class="achievement-card">
+
+                <div class="achievement-icon">
+
+                    👥
+
+                </div>
+
+                <h3>
+
+                    Community Helper
+
+                </h3>
+
+                <p>
+
+                    {% if stats.total_players >= 100 %}
+                        Unlocked
+                    {% else %}
+                        Progressing
+                    {% endif %}
+
+                </p>
+
+            </div>
+
+            <div class="achievement-card">
+
+                <div class="achievement-icon">
+
+                    🏆
+
+                </div>
+
+                <h3>
+
+                    Queue Master
+
+                </h3>
+
+                <p>
+
+                    {% if stats.total_lobbies >= 100 %}
+                        Unlocked
+                    {% else %}
+                        Keep Going
+                    {% endif %}
+
+                </p>
+
+            </div>
+
+            <div class="achievement-card">
+
+                <div class="achievement-icon">
+
+                    ⭐
+
+                </div>
+
+                <h3>
+
+                    Crowd Favorite
+
+                </h3>
+
+                <p>
+
+                    {{ stats.unique_players }} Players
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+
+
+    <!-- ============================= -->
+    <!-- Queue Breakdown -->
+    <!-- ============================= -->
+
+    <div class="analytics-row">
+
+        <div class="analytics-card">
+
+            <div class="card-header">
+
+                <h2>📊 Queue Breakdown</h2>
+
+            </div>
+
+            <div class="breakdown-list">
+
+                <div class="breakdown-item">
+
+                    <span>Total Lobbies</span>
+
+                    <strong>{{ stats.total_lobbies }}</strong>
+
+                </div>
+
+                <div class="breakdown-item">
+
+                    <span>Total Players</span>
+
+                    <strong>{{ stats.total_players }}</strong>
+
+                </div>
+
+                <div class="breakdown-item">
+
+                    <span>Unique Players</span>
+
+                    <strong>{{ stats.unique_players }}</strong>
+
+                </div>
+
+                <div class="breakdown-item">
+
+                    <span>Average Size</span>
+
+                    <strong>{{ "%.1f"|format(stats.average_players) }}</strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="analytics-card">
+
+            <div class="card-header">
+
+                <h2>🔥 Activity Score</h2>
+
+            </div>
+
+            <div class="health-panel">
+
+                <div class="health-score">
+
+                    {{ (stats.total_lobbies * stats.average_players)|round|int }}
+
+                </div>
+
+                <div class="health-label">
+
+                    Queue Activity Index
+
+                </div>
+
+                <div class="progress">
+
+                    <div class="progress-fill" style="width:90%;"></div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+        <!-- ============================= -->
+    <!-- Queue Goals -->
+    <!-- ============================= -->
+
+    <div class="analytics-row">
+
+        <div class="analytics-card">
+
+            <div class="card-header">
+
+                <h2>
+
+                    🎯 Queue Goals
+
+                </h2>
+
+            </div>
+
+            <div class="goal-list">
+
+                <div class="goal-item">
+
+                    <span>
+
+                        Reach 500 Players
+
+                    </span>
+
+                    <div class="progress">
+
+                        <div
+                            class="progress-fill"
+                            style="width: {{ (stats.total_players / 500 * 100) if stats.total_players < 500 else 100 }}%;">
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="goal-item">
+
+                    <span>
+
+                        Reach 100 Lobbies
+
+                    </span>
+
+                    <div class="progress">
+
+                        <div
+                            class="progress-fill"
+                            style="width: {{ (stats.total_lobbies / 100 * 100) if stats.total_lobbies < 100 else 100 }}%;">
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="goal-item">
+
+                    <span>
+
+                        Reach 250 Unique Players
+
+                    </span>
+
+                    <div class="progress">
+
+                        <div
+                            class="progress-fill"
+                            style="width: {{ (stats.unique_players / 250 * 100) if stats.unique_players < 250 else 100 }}%;">
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+
+
+        <div class="analytics-card">
+
+            <div class="card-header">
+
+                <h2>
+
+                    🖥 System Status
+
+                </h2>
+
+            </div>
+
+            <table class="stats-table">
+
+                <tbody>
+
+                    <tr>
+
+                        <td>Queue</td>
+
+                        <td class="online">
+
+                            ● Online
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>History</td>
+
+                        <td>
+
+                            Recording
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>Statistics</td>
+
+                        <td>
+
+                            Active
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>Application</td>
+
+                        <td>
+
+                            Healthy
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+
+
+
+
+    <!-- ============================= -->
+    <!-- Fun Stats -->
+    <!-- ============================= -->
+
+    <div class="analytics-card">
+
+        <div class="card-header">
+
+            <h2>
+
+                🎉 Fun Statistics
+
+            </h2>
+
+        </div>
+
+        <div class="summary-grid">
+
+            <div class="summary-box">
+
+                <h3>
+
+                    {{ stats.total_players * 5 }}
+
+                </h3>
+
+                <span>
+
+                    Approx. Raid Passes Used
+
+                </span>
+
+            </div>
+
+            <div class="summary-box">
+
+                <h3>
+
+                    {{ stats.total_lobbies * 3 }}
+
+                </h3>
+
+                <span>
+
+                    Approx. Hours Streamed
+
+                </span>
+
+            </div>
+
+            <div class="summary-box">
+
+                <h3>
+
+                    {{ stats.unique_players }}
+
+                </h3>
+
+                <span>
+
+                    Players Helped
+
+                </span>
+
+            </div>
+
+            <div class="summary-box">
+
+                <h3>
+
+                    {{ stats.total_players * 20 }}
+
+                </h3>
+
+                <span>
+
+                    Pokémon Defeated (Estimate)
+
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+
+
+    <!-- ============================= -->
+    <!-- Dashboard Footer -->
+    <!-- ============================= -->
+
+    <div class="analytics-card">
+
+        <div class="card-header">
+
+            <h2>❤️ {{ settings.queue_name }} Analytics</h2>
+
+
+        </div>
+
+        <p class="dashboard-footer">
+
+            Thank you for using {{ settings.queue_name }}.
+            This dashboard updates automatically as new lobbies are completed,
+            helping you track your community growth over time.
+
+        </p>
+
+    </div>
+
+</div>
+
+{% endblock %}

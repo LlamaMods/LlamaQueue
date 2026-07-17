@@ -84,10 +84,10 @@ def home(request: Request):
         len(waiting) - len(next_lobby)
     )
 
-    trainer_names = [
-        player["trainer"]
+    player_names = [
+        player["player"]
         for player in current
-        if player["trainer"]
+        if player["player"]
     ]
 
     return templates.TemplateResponse(
@@ -103,7 +103,7 @@ def home(request: Request):
 
             "history": history_items,
 
-            "trainer_names": trainer_names,
+            "player_names": player_names,
 
             "next_lobby": next_lobby,
             "remaining_waiting": remaining_waiting,
@@ -120,21 +120,21 @@ def home(request: Request):
 @app.post("/register")
 def register(
     youtube: str = Form(...),
-    trainer: str = Form(...)
+    player: str = Form(...)
 ):
-    registrations.register(youtube, trainer)
+    registrations.register(youtube, player)
     return RedirectResponse("/", status_code=303)
 
 
 @app.post("/join")
 def join(youtube: str = Form(...)):
 
-    trainer = registrations.get_trainer(youtube)
+    player = registrations.get_player(youtube)
 
-    if trainer is None:
-        trainer = ""
+    if player is None:
+        player = ""
 
-    queue.join(youtube, trainer)
+    queue.join(youtube, player)
 
     return RedirectResponse("/", status_code=303)
 
@@ -352,6 +352,20 @@ def delete_history(
         status_code=303
     )
 
+@app.get("/statistics")
+def statistics_page(request: Request):
+
+    stats = history.statistics()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="statistics.html",
+        context={
+            "title": "Statistics",
+            "stats": stats
+        }
+    )
+
 # -------------------------
 # Settings
 # -------------------------
@@ -434,10 +448,10 @@ def api_dashboard():
         len(waiting) - len(next_party)
     )
 
-    trainer_names = [
-        player["trainer"]
+    player_names = [
+        player["player"]
         for player in current
-        if player["trainer"]
+        if player["player"]
     ]
 
     return JSONResponse({
@@ -454,7 +468,7 @@ def api_dashboard():
 
         "remaining_waiting": remaining_waiting,
 
-        "trainer_names": trainer_names,
+        "player_names": player_names,
 
         "history": history.get_history()
 

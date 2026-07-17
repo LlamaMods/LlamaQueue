@@ -118,7 +118,7 @@
 
                                 <small>
 
-                                    {{ player.trainer }}
+                                    {{ player.player }}
 
                                 </small>
 
@@ -170,7 +170,7 @@
                         <td>{{ player.youtube }}</td>
 
                         <td>
-                            {{ player.trainer if player.trainer else "Not Set" }}
+                            {{ player.player if player.player else "Not Set" }}
                         </td>
 
                     </tr>
@@ -231,7 +231,7 @@
                         <td>{{ player.youtube }}</td>
 
                         <td>
-                            {{ player.trainer if player.trainer else "Not Set" }}
+                            {{ player.player if player.player else "Not Set" }}
                         </td>
 
                     </tr>
@@ -270,10 +270,10 @@
 
 <script>
 
-const trainerNames = [
+const playerNames = [
 
-{% for trainer in trainer_names %}
-"{{ trainer }}",
+{% for player in player_names %}
+"{{ player }}",
 {% endfor %}
 
 ];
@@ -281,7 +281,7 @@ const trainerNames = [
 function copyLobby(){
 
     navigator.clipboard.writeText(
-        trainerNames.join("\n")
+        playerNames.join("\n")
     );
 
     alert("Player names copied!");
@@ -354,7 +354,7 @@ function renderCurrentParty(players){
         table.innerHTML += `
             <tr>
                 <td>${player.youtube}</td>
-                <td>${player.trainer || "Not Set"}</td>
+                <td>${player.player || "Not Set"}</td>
             </tr>
         `;
 
@@ -400,7 +400,7 @@ function renderNextParty(players, remaining){
         table.innerHTML += `
             <tr>
                 <td>${player.youtube}</td>
-                <td>${player.trainer || "Not Set"}</td>
+                <td>${player.player || "Not Set"}</td>
             </tr>
         `;
 

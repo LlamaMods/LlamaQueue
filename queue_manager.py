@@ -75,7 +75,7 @@ class QueueManager:
 
         self.save()
 
-    def join(self, youtube_name, trainer_name=""):
+    def join(self, youtube_name, player_name=""):
 
         self.load()
 
@@ -91,7 +91,7 @@ class QueueManager:
 
             "youtube": youtube_name,
 
-            "trainer": trainer_name,
+            "player": player_name,
 
             "ready": False,
 

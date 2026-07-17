@@ -2,55 +2,55 @@
     "players": [
         {
             "youtube": "Ryan",
-            "trainer": "LlamaRyan",
+            "player": "LlamaRyan",
             "ready": false,
             "joined": 1784239412.7294424
         },
         {
             "youtube": "Pocket",
-            "trainer": "PocketJon",
+            "player": "PocketJon",
             "ready": false,
             "joined": 1784239412.7359009
         },
         {
             "youtube": "Rockstar",
-            "trainer": "LoisRockstar",
+            "player": "LoisRockstar",
             "ready": false,
             "joined": 1784239412.7422495
         },
         {
             "youtube": "BadLuck",
-            "trainer": "BadLuck",
+            "player": "BadLuck",
             "ready": false,
             "joined": 1784239412.748456
         },
         {
             "youtube": "AirBrake",
-            "trainer": "AirBrake",
+            "player": "AirBrake",
             "ready": false,
             "joined": 1784239412.754814
         },
         {
             "youtube": "Southern",
-            "trainer": "Southern",
+            "player": "Southern",
             "ready": false,
             "joined": 1784239412.7614117
         },
         {
             "youtube": "Roman",
-            "trainer": "Roman",
+            "player": "Roman",
             "ready": false,
             "joined": 1784239412.7679942
         },
         {
             "youtube": "Steve",
-            "trainer": "Steve",
+            "player": "Steve",
             "ready": false,
             "joined": 1784239412.7747223
         },
         {
             "youtube": "Sarah",
-            "trainer": "Sarah",
+            "player": "Sarah",
             "ready": false,
             "joined": 1784239412.7826653
         }

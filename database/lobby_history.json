@@ -4,22 +4,22 @@
         "players": [
             {
                 "youtube": "Pocket",
-                "trainer": "PocketJon",
+                "player": "PocketJon",
                 "ready": false
             },
             {
                 "youtube": "Rockstar",
-                "trainer": "LoisRockstar",
+                "player": "LoisRockstar",
                 "ready": false
             },
             {
                 "youtube": "BadLuck",
-                "trainer": "BadLuck",
+                "player": "BadLuck",
                 "ready": false
             },
             {
                 "youtube": "AirBrake",
-                "trainer": "AirBrake",
+                "player": "AirBrake",
                 "ready": false
             }
         ]
@@ -29,27 +29,27 @@
         "players": [
             {
                 "youtube": "Southern",
-                "trainer": "Southern",
+                "player": "Southern",
                 "ready": false
             },
             {
                 "youtube": "Roman",
-                "trainer": "Roman",
+                "player": "Roman",
                 "ready": false
             },
             {
                 "youtube": "Steve",
-                "trainer": "Steve",
+                "player": "Steve",
                 "ready": false
             },
             {
                 "youtube": "Sarah",
-                "trainer": "Sarah",
+                "player": "Sarah",
                 "ready": false
             },
             {
                 "youtube": "Ryan",
-                "trainer": "LlamaRyan",
+                "player": "LlamaRyan",
                 "ready": false
             }
         ]
@@ -59,27 +59,27 @@
         "players": [
             {
                 "youtube": "Ryan",
-                "trainer": "LlamaRyan",
+                "player": "LlamaRyan",
                 "ready": false
             },
             {
                 "youtube": "Pocket",
-                "trainer": "PocketJon",
+                "player": "PocketJon",
                 "ready": false
             },
             {
                 "youtube": "Rockstar",
-                "trainer": "LoisRockstar",
+                "player": "LoisRockstar",
                 "ready": false
             },
             {
                 "youtube": "BadLuck",
-                "trainer": "BadLuck",
+                "player": "BadLuck",
                 "ready": false
             },
             {
                 "youtube": "AirBrake",
-                "trainer": "AirBrake",
+                "player": "AirBrake",
                 "ready": false
             }
         ]
@@ -89,22 +89,22 @@
         "players": [
             {
                 "youtube": "Pocket",
-                "trainer": "PocketJon",
+                "player": "PocketJon",
                 "ready": false
             },
             {
                 "youtube": "Rockstar",
-                "trainer": "LoisRockstar",
+                "player": "LoisRockstar",
                 "ready": false
             },
             {
                 "youtube": "BadLuck",
-                "trainer": "BadLuck",
+                "player": "BadLuck",
                 "ready": false
             },
             {
                 "youtube": "AirBrake",
-                "trainer": "AirBrake",
+                "player": "AirBrake",
                 "ready": false
             }
         ]
@@ -114,27 +114,27 @@
         "players": [
             {
                 "youtube": "Southern",
-                "trainer": "Southern",
+                "player": "Southern",
                 "ready": false
             },
             {
                 "youtube": "Roman",
-                "trainer": "Roman",
+                "player": "Roman",
                 "ready": false
             },
             {
                 "youtube": "Steve",
-                "trainer": "Steve",
+                "player": "Steve",
                 "ready": false
             },
             {
                 "youtube": "Sarah",
-                "trainer": "Sarah",
+                "player": "Sarah",
                 "ready": false
             },
             {
                 "youtube": "Ryan",
-                "trainer": "LlamaRyan",
+                "player": "LlamaRyan",
                 "ready": false
             }
         ]

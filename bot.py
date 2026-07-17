@@ -89,31 +89,31 @@ def handle_message(author, message):
 
         if len(parts) == 1:
 
-            trainer = registrations.get_trainer(author)
+            player = registrations.get_player(author)
 
-            if trainer:
+            if player:
 
                 youtube.send_message(
-                    f"{author} Your registered trainer is {trainer}"
+                    f"{author} Your registered player is {player}"
                 )
 
             else:
 
                 youtube.send_message(
-                    f"{author} You are not registered. Use !reg TrainerName"
+                    f"{author} You are not registered. Use !reg PlayerName"
                 )
 
             return
 
-        trainer_name = parts[1].strip()
+        Player_name = parts[1].strip()
 
         registrations.register(
             author,
-            trainer_name
+            Player_name
         )
 
         youtube.send_message(
-            f"{author} Registration complete! Trainer: {trainer_name}"
+            f"{author} Registration complete! Player: {player_name}"
         )
 
         return
@@ -124,19 +124,19 @@ def handle_message(author, message):
 
     if message == "!join":
 
-        trainer = registrations.get_trainer(author)
+        player = registrations.get_player(author)
 
-        if trainer is None:
+        if player is None:
 
             youtube.send_message(
-                f"{author} Please register first using !reg TrainerName"
+                f"{author} Please register first using !reg PlayerName"
             )
 
             return
 
         success = queue.join(
             author,
-            trainer
+            player
         )
         if success:
             activity.add(f"{author} joined the queue.")

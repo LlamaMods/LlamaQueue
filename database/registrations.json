@@ -1,11 +1,11 @@
 {
     "Ryan": {
-        "trainer": "LlamaRyan"
+        "player": "LlamaRyan"
     },
     "RyanStone": {
-        "trainer": "LlamaRyan"
+        "player": "LlamaRyan"
     },
     "@LlamaModdingCo": {
-        "trainer": "TestTrainer"
+        "player": "TestTrainer"
     }
 }

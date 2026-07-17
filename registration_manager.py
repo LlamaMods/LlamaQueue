@@ -23,22 +23,22 @@ class RegistrationManager:
         with open(self.file, "w") as f:
             json.dump(data, f, indent=4)
 
-    def register(self, youtube_name, trainer_name):
+    def register(self, youtube_name, player_name):
 
         data = self.load()
 
         data[youtube_name] = {
-            "trainer": trainer_name
+            "player": player_name
         }
 
         self.save(data)
 
-    def get_trainer(self, youtube_name):
+    def get_player(self, youtube_name):
 
         data = self.load()
 
         if youtube_name in data:
-            return data[youtube_name]["trainer"]
+            return data[youtube_name]["player"]
 
         return None
 

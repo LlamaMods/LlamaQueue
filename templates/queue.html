@@ -54,7 +54,7 @@
 
                     <tr>
                         <th>YouTube</th>
-                        <th>Trainer</th>
+                        <th>Player</th>
                     </tr>
 
                     {% for player in current %}
@@ -63,7 +63,7 @@
 
                         <td>{{ player.youtube }}</td>
 
-                        <td>{{ player.trainer if player.trainer else "Not Set" }}</td>
+                        <td>{{ player.player if player.player else "Not Set" }}</td>
 
                     </tr>
 
@@ -135,7 +135,7 @@
 
                         <th>YouTube</th>
 
-                        <th>Trainer</th>
+                        <th>Player</th>
 
                         <th>Waiting</th>
 
@@ -175,7 +175,7 @@
 
                         </td>
 
-                        <td>{{ player.trainer if player.trainer else "Not Set" }}</td>
+                        <td>{{ player.player if player.player else "Not Set" }}</td>
 
                         <td>
 
