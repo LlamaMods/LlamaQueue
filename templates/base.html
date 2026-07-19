@@ -168,53 +168,80 @@
 
         <div class="sidebar-divider"></div>
 
+        
         <div class="sidebar-user">
 
             <div class="sidebar-user-card">
-
                 <div class="sidebar-avatar">
-
+                    {% if current_user and current_user.avatar_url %}
+                    <img src="{{ current_user.avatar_url }}" alt="Avatar" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">
+                    {% else %}
                     👤
-
+                    {% endif %}
                 </div>
 
                 <div class="sidebar-user-details">
-
-                    <span class="user-name">
-
-                        Queue Administrator
-
-                    </span>
-
-                    <span class="user-role">
-
-                        Administrator
-
-                    </span>
-
+                    {% if current_user %}
+                    <span class="user-name">{{ current_user.youtube_channel_name or current_user.display_name }}</span>
+                    {% if current_user.youtube_channel_handle %}
+                    <span class="user-role">{{ current_user.youtube_channel_handle }}</span>
+                    {% endif %}
+                    {% else %}
+                    <span class="user-name">Not Signed In</span>
+                    <span class="user-role">Connect an account below</span>
+                    {% endif %}
                 </div>
+            </div>
+
+            {% if current_user %}
+
+            <div class="sidebar-connections">
+                <div class="sidebar-divider"></div>
+                <div class="nav-text" style="padding:0 14px 10px;color:#A9B4BE;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;">
+                    Connected Services
+                </div>
+
+                {% if current_user.google_user_id %}
+                <div class="sidebar-logout"><span class="nav-icon">🟢</span><span class="nav-text">🟢 Google</span></div>
+                {% else %}
+                <a href="/auth/login/google" class="sidebar-logout"><span class="nav-icon">🟢</span><span class="nav-text">＋ Google</span></a>
+                {% endif %}
+
+                {% if current_user.twitch_user_id %}
+                <div class="sidebar-logout"><span class="nav-icon">🟣</span><span class="nav-text">🟣 Twitch</span></div>
+                {% else %}
+                <a href="/auth/login/twitch" class="sidebar-logout"><span class="nav-icon">🟣</span><span class="nav-text">＋ Twitch</span></a>
+                {% endif %}
+
+                {% if current_user.nightbot_user_id %}
+                <div class="sidebar-logout"><span class="nav-icon">🔵</span><span class="nav-text">🔵 Nightbot</span></div>
+                {% else %}
+                <a href="/auth/login/nightbot" class="sidebar-logout"><span class="nav-icon">🔵</span><span class="nav-text">＋ Nightbot</span></a>
+                {% endif %}
 
             </div>
 
-            <a
-                href="/logout"
-                class="sidebar-logout">
-
-                <span class="nav-icon">
-
-                    🚪
-
-                </span>
-
-                <span class="nav-text">
-
-                    Logout
-
-                </span>
-
+            <a href="/auth/logout" class="sidebar-logout">
+                <span class="nav-icon">🚪</span>
+                <span class="nav-text">Sign Out ↗</span>
             </a>
 
+            {% else %}
+
+            <a href="/auth/login/google" class="sidebar-logout">
+                <span class="nav-icon">🟢</span>
+                <span class="nav-text">Continue with Google</span>
+            </a>
+
+            <a href="/auth/login/twitch" class="sidebar-logout">
+                <span class="nav-icon">🟣</span>
+                <span class="nav-text">Continue with Twitch</span>
+            </a>
+
+            {% endif %}
+
         </div>
+
 
     </aside>
 

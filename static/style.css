@@ -171,7 +171,8 @@ h1{
 
     top:0;
 
-    overflow:hidden;
+    overflow-y:auto;
+    overflow-x:hidden;
 
     transition:
         width .25s ease,
@@ -1648,7 +1649,7 @@ input::placeholder{
 
 .sidebar-divider{
     height:1px;
-    margin:18px 0;
+    margin:10px 0;
     background:rgba(255,255,255,.08);
 }
 
@@ -1659,14 +1660,14 @@ input::placeholder{
 .sidebar-user{
     display:flex;
     flex-direction:column;
-    gap:14px;
+    gap:8px;
 }
 
 .sidebar-user-card{
     display:flex;
     align-items:center;
-    gap:14px;
-    padding:14px;
+    gap:10px;
+    padding:10px 12px;
     border-radius:var(--radius);
     background:rgba(255,255,255,.04);
     border:1px solid rgba(255,255,255,.05);
@@ -1676,12 +1677,12 @@ input::placeholder{
     display:flex;
     align-items:center;
     justify-content:center;
-    width:44px;
-    height:44px;
+    width:36px;
+    height:36px;
     border-radius:50%;
     background:var(--accent);
     color:#fff;
-    font-size:1.1rem;
+    font-size:.9rem;
     flex-shrink:0;
 }
 
@@ -2374,4 +2375,16 @@ input::placeholder{
         grid-template-columns:1fr;
     }
 
+}
+
+/* Stream-safe sidebar links */
+.sidebar a,
+.sidebar a:visited,
+.sidebar a:hover,
+.sidebar a:active,
+.sidebar-logout,
+.sidebar-logout:visited,
+.sidebar-logout:hover,
+.sidebar-logout:active{
+    text-decoration:none;
 }

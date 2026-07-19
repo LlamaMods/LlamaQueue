@@ -1,14 +1,31 @@
 from registration_manager import RegistrationManager
-from queue_manager import QueueManager
 from youtube_manager import YouTubeManager
 from moderator_manager import ModeratorManager
 from activity_manager import ActivityManager
 
+from database.session import SessionLocal
+from database.models import User
+
+from services.queue_service import QueueService
+
 registrations = RegistrationManager()
-queue = QueueManager()
 youtube = YouTubeManager()
 moderators = ModeratorManager()
 activity = ActivityManager()
+
+
+def get_queue():
+
+    db = SessionLocal()
+
+    user = db.query(User).first()
+
+    if user is None:
+        db.close()
+        raise Exception("No creator account found.")
+
+    return QueueService(db, user), db
+
 
 print("🦙 Llama Queue Bot")
 print("Connecting to YouTube...")
@@ -29,202 +46,210 @@ else:
 
 def handle_message(author, message):
 
-    message = message.strip()
+    queue, db = get_queue()
 
-    print(f"{author}: {message}")
+    try:
 
-    # ------------------------------------
-    # !open
-    # ------------------------------------
+        message = message.strip()
 
-    if message == "!open":
+        print(f"{author}: {message}")
 
-        if not moderators.is_moderator(author):
+        # ------------------------------------
+        # !open
+        # ------------------------------------
 
-            youtube.send_message(
-                f"{author} You don't have permission to use this command."
-            )
+        if message == "!open":
 
-            return
-
-        queue.open_queue()
-
-        activity.add(f"{author} closed the queue.")
-
-        youtube.send_message(
-            "🟢 Queue is now OPEN!"
-        )
-
-        return
-
-    # ------------------------------------
-    # !close
-    # ------------------------------------
-
-    if message == "!close":
-
-        if not moderators.is_moderator(author):
-
-            youtube.send_message(
-                f"{author} You don't have permission to use this command."
-            )
-
-            return
-
-        queue.close_queue()
-
-        youtube.send_message(
-            "🔴 Queue is now CLOSED!"
-        )
-
-        return
-
-    # ------------------------------------
-    # !reg
-    # ------------------------------------
-
-    if message.startswith("!reg"):
-
-        parts = message.split(maxsplit=1)
-
-        if len(parts) == 1:
-
-            player = registrations.get_player(author)
-
-            if player:
+            if not moderators.is_moderator(author):
 
                 youtube.send_message(
-                    f"{author} Your registered player is {player}"
-                )
-
-            else:
-
-                youtube.send_message(
-                    f"{author} You are not registered. Use !reg PlayerName"
-                )
-
-            return
-
-        Player_name = parts[1].strip()
-
-        registrations.register(
-            author,
-            Player_name
-        )
-
-        youtube.send_message(
-            f"{author} Registration complete! Player: {player_name}"
-        )
-
-        return
-
-    # ------------------------------------
-    # !join
-    # ------------------------------------
-
-    if message == "!join":
-
-        player = registrations.get_player(author)
-
-        if player is None:
-
-            youtube.send_message(
-                f"{author} Please register first using !reg PlayerName"
-            )
-
-            return
-
-        success = queue.join(
-            author,
-            player
-        )
-        if success:
-            activity.add(f"{author} joined the queue.")
-          
-
-        if success:
-
-            players = queue.get_players()
-
-            position = len(players)
-
-            lobby = (
-                (position - 1)
-                // queue.get_lobby_size()
-            ) + 1
-
-            wait = queue.estimated_wait(
-                position - 1
-            )
-
-            youtube.send_message(
-                f"{author} Joined! Position #{position} | Lobby {lobby} | Est. {wait}"
-            )
-
-        else:
-
-            if not queue.is_open():
-
-                youtube.send_message(
-                    f"{author} Queue is currently CLOSED."
-                )
-
-            else:
-
-                youtube.send_message(
-                    f"{author} You're already in the queue."
-                )
-
-        return
-           
-    # ------------------------------------
-    # !leave
-    # ------------------------------------
-
-    if message == "!leave":
-
-        queue.remove(author)
-        
-        activity.add(f"{author} left the queue.")
-
-        youtube.send_message(
-            f"{author} You have left the queue."
-        )
-
-        return
-
-    # ------------------------------------
-    # !position
-    # ------------------------------------
-
-    if message == "!position":
-
-        players = queue.get_players()
-
-        for index, player in enumerate(players):
-
-            if player["youtube"].lower() == author.lower():
-
-                lobby = (
-                    index // queue.get_lobby_size()
-                ) + 1
-
-                wait = queue.estimated_wait(index)
-
-                youtube.send_message(
-                    f"{author} Position #{index + 1} | Lobby {lobby} | Est. {wait}"
+                    f"{author} You don't have permission to use this command."
                 )
 
                 return
 
-        youtube.send_message(
-            f"{author} You are not currently in the queue."
-        )
+            queue.open_queue()
 
+            activity.add(f"{author} opened the queue.")
+
+            youtube.send_message(
+                "🟢 Queue is now OPEN!"
+            )
+
+            return
+
+        # ------------------------------------
+        # !close
+        # ------------------------------------
+
+        if message == "!close":
+
+            if not moderators.is_moderator(author):
+
+                youtube.send_message(
+                    f"{author} You don't have permission to use this command."
+                )
+
+                return
+
+            queue.close_queue()
+
+            activity.add(f"{author} closed the queue.")
+
+            youtube.send_message(
+                "🔴 Queue is now CLOSED!"
+            )
+
+            return
+
+        # ------------------------------------
+        # !reg
+        # ------------------------------------
+
+        if message.startswith("!reg"):
+
+            parts = message.split(maxsplit=1)
+
+            if len(parts) == 1:
+
+                player = registrations.get_player(author)
+
+                if player:
+
+                    youtube.send_message(
+                        f"{author} Your registered player is {player}"
+                    )
+
+                else:
+
+                    youtube.send_message(
+                        f"{author} You are not registered. Use !reg PlayerName"
+                    )
+
+                return
+
+            player_name = parts[1].strip()
+
+            registrations.register(
+                author,
+                player_name
+            )
+
+            youtube.send_message(
+                f"{author} Registration complete! Player: {player_name}"
+            )
+
+            return
+
+        # ------------------------------------
+        # !join
+        # ------------------------------------
+
+        if message == "!join":
+
+            player = registrations.get_player(author)
+
+            if player is None:
+
+                youtube.send_message(
+                    f"{author} Please register first using !reg PlayerName"
+                )
+
+                return
+
+            success = queue.join(
+                author,
+                player
+            )
+
+            if success:
+
+                activity.add(f"{author} joined the queue.")
+
+                players = queue.waiting_players()
+
+                position = len(players)
+
+                lobby = (
+                    (position - 1)
+                    // queue.get_lobby_size()
+                ) + 1
+
+                wait = queue.estimated_wait(
+                    position - 1
+                )
+
+                youtube.send_message(
+                    f"{author} Joined! Position #{position} | Lobby {lobby} | Est. {wait}"
+                )
+
+            else:
+
+                if not queue.is_open():
+
+                    youtube.send_message(
+                        f"{author} Queue is currently CLOSED."
+                    )
+
+                else:
+
+                    youtube.send_message(
+                        f"{author} You're already in the queue."
+                    )
+
+            return
+
+        # ------------------------------------
+        # !leave
+        # ------------------------------------
+
+        if message == "!leave":
+
+            queue.remove(author)
+
+            activity.add(f"{author} left the queue.")
+
+            youtube.send_message(
+                f"{author} You have left the queue."
+            )
+
+            return
+
+        # ------------------------------------
+        # !position
+        # ------------------------------------
+
+        if message == "!position":
+
+            players = queue.waiting_players()
+
+            for index, player in enumerate(players):
+
+                if player["youtube"].lower() == author.lower():
+
+                    lobby = (
+                        index // queue.get_lobby_size()
+                    ) + 1
+
+                    wait = queue.estimated_wait(index)
+
+                    youtube.send_message(
+                        f"{author} Position #{index + 1} | Lobby {lobby} | Est. {wait}"
+                    )
+
+                    return
+
+            youtube.send_message(
+                f"{author} You are not currently in the queue."
+            )
+
+            return
+
+        # Ignore everything else.
         return
 
-    # Ignore everything else for now.
-    return
+    finally:
+        db.close()
 
 
 youtube.listen(handle_message)

@@ -1,6 +1,10 @@
 # Environment variables
 .env
 
+# OAuth credentials
+credentials/client_secret.json
+credentials/token.pickle
+
 # Python cache
 __pycache__/
 *.py[cod]
