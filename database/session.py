@@ -20,13 +20,29 @@ DATABASE_URL = (
 # ENGINE
 # ==========================================================
 
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        future=True,
-        echo=True,
-    )
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    future=True,
+    echo=True,
+)
 
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
+
+class Base(DeclarativeBase):
+    pass
+
+
+def get_db() -> Generator[Session, None, None]:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # ==========================================================
 # SESSION FACTORY
