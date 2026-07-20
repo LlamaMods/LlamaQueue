@@ -34,33 +34,36 @@ class SettingsService:
             )
             self.db.add(settings)
             self.db.commit()
+            self.db.refresh(settings)
 
         self._settings = settings
 
     @property
     def settings(self):
-        self.db.refresh(self._settings)
         return self._settings
 
     def get(self, key):
-        return getattr(self.settings, key)
+        return getattr(self._settings, key)
 
     def set(self, key, value):
-
-        setattr(self.settings, key, value)
+        setattr(self._settings, key, value)
         self.db.commit()
+        self.db.refresh(self._settings)
 
     def update(self, **kwargs):
+        self.db.refresh(self._settings)
 
         for key, value in kwargs.items():
-            if hasattr(self.settings, key):
-                setattr(self.settings, key, value)
+            if hasattr(self._settings, key):
+                setattr(self._settings, key, value)
 
         self.db.commit()
+        self.db.refresh(self._settings)
 
     def get_all(self):
+        self.db.refresh(self._settings)
 
-        s = self.settings
+        s = self._settings
 
         return {
             "creator_name": s.creator_name,
@@ -75,19 +78,22 @@ class SettingsService:
         }
 
     def reset(self):
-
         for key, value in self.DEFAULTS.items():
-            setattr(self.settings, key, value)
+            setattr(self._settings, key, value)
 
         self.db.commit()
+        self.db.refresh(self._settings)
 
     def is_open(self):
-        return self.settings.queue_open
+        self.db.refresh(self._settings)
+        return self._settings.queue_open
 
     def open_queue(self):
-        self.settings.queue_open = True
+        self._settings.queue_open = True
         self.db.commit()
+        self.db.refresh(self._settings)
 
     def close_queue(self):
-        self.settings.queue_open = False
+        self._settings.queue_open = False
         self.db.commit()
+        self.db.refresh(self._settings)

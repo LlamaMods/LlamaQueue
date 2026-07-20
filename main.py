@@ -595,7 +595,6 @@ def settings_page(request: Request):
 
     return response
 
-
 @app.post("/settings/save")
 def save_settings(
     request: Request,
@@ -613,11 +612,15 @@ def save_settings(
     theme: str = Form(...)
 ):
 
+    print("=== ENTERED /settings/save ===")
+
     queue, registrations, settings, history, db = get_services(request)
 
     if settings is None:
         db.close()
         return RedirectResponse("/login", status_code=302)
+
+    print("Calling settings.update()")
 
     settings.update(
         creator_name=creator_name,
@@ -629,6 +632,8 @@ def save_settings(
         estimated_match_length=estimated_match_length,
         theme=theme,
     )
+
+    print("Returned from settings.update()")
 
     db.close()
 
@@ -673,7 +678,7 @@ def populate_test_queue(request: Request):
     db.close()
 
     return RedirectResponse("/", status_code=303)
-    
+
 # -------------------------
 # API
 # -------------------------
