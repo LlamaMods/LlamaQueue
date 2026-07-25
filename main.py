@@ -22,7 +22,7 @@ from auth.google import oauth
 from database.models import User
 from database.models import CommandMapping
 from database.session import Base, engine, SessionLocal
-from database.database import SessionLocal
+from database.session import SessionLocal
 from services.user_resolver import get_creator_from_nightbot
 
 from services.history_service import HistoryService
