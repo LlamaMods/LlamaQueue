@@ -181,7 +181,7 @@ def home(request: Request):
 from fastapi import Header, Query
 
 
-@app.post("/nightbot")
+@app.get("/nightbot")
 async def nightbot(
     request: Request,
     command: str = Query(...),
