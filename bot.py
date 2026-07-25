@@ -631,5 +631,3 @@ class LlamaBot:
 
         return sorted(self.command_map.keys())
 
-
-bot = LlamaBot()

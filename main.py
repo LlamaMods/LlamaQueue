@@ -33,6 +33,7 @@ from services.queue_service import QueueService
 from services.registration_service import RegistrationService
 from services.settings_service import SettingsService
 from typing import List
+from bot import LlamaBot
 
 app = FastAPI()
 
