@@ -35,11 +35,15 @@ async def login_twitch(request: Request):
 async def login_nightbot(request: Request):
     redirect_uri = str(request.url_for("nightbot_callback"))
 
-
-    return await nightbot_oauth.nightbot.authorize_redirect(
+    print("Redirect URI:", redirect_uri)
+    response = await oauth.nightbot.authorize_redirect(
         request,
         redirect_uri,
     )
+
+    print("Redirecting to:", response.headers.get("location"))
+
+    return response
 
 @router.get("/twitch/callback", name="twitch_callback")
 async def twitch_callback(request: Request):
