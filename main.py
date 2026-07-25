@@ -871,16 +871,7 @@ def sync_nightbot_commands(request: Request):
         status_code=303,
     )
 
-    except Exception as ex:
 
-        print(ex)
-
-    db.close()
-
-    return RedirectResponse(
-        "/nightbot/commands",
-        status_code=303,
-    )
 
 @app.get("/settings")
 def settings_page(request: Request):
