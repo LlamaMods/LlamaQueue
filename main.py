@@ -837,26 +837,8 @@ def sync_nightbot_commands(request: Request):
 
             mapping = item["mapping"]
 
-            if mapping.action == "join_queue":
-                response = f"$(urlfetch {base_url}/nightbot?command=join)"
-
-            elif mapping.action == "register_player":
-                response = (
-                    f"$(urlfetch {base_url}/nightbot?command=reg"
-                    f"&player=$(querystring))"
-                )
-
-            elif mapping.action == "leave_queue":
-                response = f"$(urlfetch {base_url}/nightbot?command=leave)"
-
-            elif mapping.action == "queue_position":
-                response = f"$(urlfetch {base_url}/nightbot?command=position)"
-
-            elif mapping.action == "queue_size":
-                response = f"$(urlfetch {base_url}/nightbot?command=queue)"
-
-            else:
-                response = mapping.message
+            # Build the Nightbot message from the stored command template.
+            response = mapping.message.format(base_url=base_url)
 
             if item["status"] == "missing":
 
