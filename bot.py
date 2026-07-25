@@ -49,9 +49,9 @@ class BotResponse:
 
 class LlamaBot:
 
-    def __init__(self, creator_name: str):
+    def __init__(self, creator_id: int):
 
-        self.creator_name = creator_name
+        self.creator_id = creator_id
 
         self.cooldowns: Dict[str, float] = {}
 
@@ -81,12 +81,8 @@ class LlamaBot:
 
         db = SessionLocal()
 
-        user = (
-            db.query(User)
-            .filter(User.username == self.creator_name)
-            .first()
-        )    
-
+        user = db.get(User, self.creator_id)
+        
         if user is None:
 
             db.close()

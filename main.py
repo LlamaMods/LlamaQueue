@@ -22,6 +22,8 @@ from auth.google import oauth
 from database.models import User
 from database.models import CommandMapping
 from database.session import Base, engine, SessionLocal
+from database.database import SessionLocal
+from services.user_resolver import get_creator_from_nightbot
 
 from services.history_service import HistoryService
 from services.moderator_service import ModeratorService
@@ -194,15 +196,18 @@ async def nightbot(
     creator_name = request.query_params.get("channel")
     chatter_name = request.query_params.get("user")
 
+    channel = {}
+
     if nightbot_channel:
         try:
-            creator_name = json.loads(nightbot_channel)["name"]
+            channel = json.loads(nightbot_channel)
+            creator_name = channel.get("name", creator_name)
         except Exception:
-            pass
+            channel = {}
 
     if nightbot_user:
         try:
-            chatter_name = json.loads(nightbot_user)["name"]
+            chatter_name = json.loads(nightbot_user).get("name", chatter_name)
         except Exception:
             pass
 
@@ -213,22 +218,37 @@ async def nightbot(
             status_code=400,
         )
 
-    bot = LlamaBot(creator_name)
+    db = SessionLocal()
 
-    if command == "reg":
-        message = f"!reg {player}"
-    else:
-        message = f"!{command}"
+    try:
+        creator = get_creator_from_nightbot(db, channel)
 
-    response = bot.process(
-        username=chatter_name,
-        message=message,
-    )
+        if creator is None:
+            return Response(
+                content="Creator account not found.",
+                media_type="text/plain",
+                status_code=404,
+            )
 
-    return Response(
-        content=response.message,
-        media_type="text/plain",
-    )
+        bot = LlamaBot(creator.id)
+
+        if command == "reg":
+            message = f"!reg {player}"
+        else:
+            message = f"!{command}"
+
+        response = bot.process(
+            username=chatter_name,
+            message=message,
+        )
+
+        return Response(
+            content=response.message,
+            media_type="text/plain",
+        )
+
+    finally:
+        db.close()
     
 @app.post("/register")
 def register(
