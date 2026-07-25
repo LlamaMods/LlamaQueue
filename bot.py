@@ -1,255 +1,635 @@
-from registration_manager import RegistrationManager
-from youtube_manager import YouTubeManager
-from moderator_manager import ModeratorManager
-from activity_manager import ActivityManager
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Callable, Dict, Optional, Any
 
 from database.session import SessionLocal
 from database.models import User
 
 from services.queue_service import QueueService
-
-registrations = RegistrationManager()
-youtube = YouTubeManager()
-moderators = ModeratorManager()
-activity = ActivityManager()
+from services.registration_service import RegistrationService
+from services.moderator_service import ModeratorService
+from services.activity_service import ActivityService
 
 
-def get_queue():
+# ==========================================================
+# RESPONSE OBJECT
+# ==========================================================
 
-    db = SessionLocal()
+@dataclass(slots=True)
+class BotResponse:
 
-    user = db.query(User).first()
+    success: bool
 
-    if user is None:
-        db.close()
-        raise Exception("No creator account found.")
+    message: str = ""
 
-    return QueueService(db, user), db
+    announce: bool = False
+
+    event: str = ""
+
+    username: str = ""
+
+    player: str = ""
+
+    lobby: Optional[int] = None
+
+    slot: Optional[int] = None
+
+    position: Optional[int] = None
+
+    queue_size: Optional[int] = None
+
+    data: dict = field(default_factory=dict)
 
 
-print("🦙 Llama Queue Bot")
-print("Connecting to YouTube...")
-print()
+# ==========================================================
+# BOT
+# ==========================================================
 
-youtube.connect()
+class LlamaBot:
 
-if youtube.is_live():
+    def __init__(self, creator_name: str):
 
-    print("🟢 Active livestream detected.")
-    print()
+        self.creator_name = creator_name
 
-else:
+        self.cooldowns: Dict[str, float] = {}
 
-    print("🟡 No active livestream detected.")
-    print()
-    exit()
+        self.pending_announcements: list[BotResponse] = []
 
-def handle_message(author, message):
+        self.command_map: Dict[str, Callable] = {
 
-    queue, db = get_queue()
+            "!join": self.join,
 
-    try:
+            "!leave": self.leave,
+
+            "!position": self.position,
+
+            "!queue": self.queue,
+
+            "!reg": self.register,
+
+            "!open": self.open_queue,
+
+            "!close": self.close_queue,
+
+        }
+
+    # ------------------------------------------------------
+
+    def services(self):
+
+        db = SessionLocal()
+
+        user = (
+            db.query(User)
+            .filter(User.username == self.creator_name)
+            .first()
+        )    
+
+        if user is None:
+
+            db.close()
+
+            raise RuntimeError("Creator account not found.")
+
+        return {
+
+            "db": db,
+
+            "queue": QueueService(db, user),
+
+            "registration": RegistrationService(db, user),
+
+            "moderator": ModeratorService(db, user),
+
+            "activity": ActivityService(db, user),
+
+        }
+
+    # ------------------------------------------------------
+
+    def process(self, username: str, message: str) -> BotResponse:
 
         message = message.strip()
 
-        print(f"{author}: {message}")
+        if not message:
 
-        # ------------------------------------
-        # !open
-        # ------------------------------------
+            return BotResponse(False)
 
-        if message == "!open":
+        command = message.split()[0].lower()
 
-            if not moderators.is_moderator(author):
+        handler = self.command_map.get(command)
 
-                youtube.send_message(
-                    f"{author} You don't have permission to use this command."
-                )
+        if handler is None:
 
-                return
+            return BotResponse(False)
 
-            queue.open_queue()
+        return handler(username, message)
+    # ======================================================
+    # !reg
+    # ======================================================
 
-            activity.add(f"{author} opened the queue.")
+    def register(self, username: str, message: str) -> BotResponse:
 
-            youtube.send_message(
-                "🟢 Queue is now OPEN!"
-            )
+        s = self.services()
 
-            return
+        db = s["db"]
+        registration = s["registration"]
+        activity = s["activity"]
 
-        # ------------------------------------
-        # !close
-        # ------------------------------------
-
-        if message == "!close":
-
-            if not moderators.is_moderator(author):
-
-                youtube.send_message(
-                    f"{author} You don't have permission to use this command."
-                )
-
-                return
-
-            queue.close_queue()
-
-            activity.add(f"{author} closed the queue.")
-
-            youtube.send_message(
-                "🔴 Queue is now CLOSED!"
-            )
-
-            return
-
-        # ------------------------------------
-        # !reg
-        # ------------------------------------
-
-        if message.startswith("!reg"):
+        try:
 
             parts = message.split(maxsplit=1)
 
             if len(parts) == 1:
 
-                player = registrations.get_player(author)
+                player = registration.get_player(username)
 
                 if player:
 
-                    youtube.send_message(
-                        f"{author} Your registered player is {player}"
+                    return BotResponse(
+                        success=True,
+                        message=f"{username} is registered as {player}.",
+                        username=username,
+                        player=player,
                     )
 
-                else:
-
-                    youtube.send_message(
-                        f"{author} You are not registered. Use !reg PlayerName"
-                    )
-
-                return
+                return BotResponse(
+                    success=False,
+                    message="You are not registered. Use !reg PlayerName",
+                    username=username,
+                )
 
             player_name = parts[1].strip()
 
-            registrations.register(
-                author,
-                player_name
+            if player_name == "":
+
+                return BotResponse(
+                    success=False,
+                    message="Please provide a player name.",
+                    username=username,
+                )
+
+            registration.register(
+                username,
+                player_name,
             )
 
-            youtube.send_message(
-                f"{author} Registration complete! Player: {player_name}"
+            activity.add(
+                f"{username} registered as {player_name}."
             )
 
-            return
+            return BotResponse(
+                success=True,
+                message=f"Registration complete! ({player_name})",
+                username=username,
+                player=player_name,
+                event="register",
+                announce=False,
+            )
 
-        # ------------------------------------
-        # !join
-        # ------------------------------------
+        finally:
 
-        if message == "!join":
+            db.close()
 
-            player = registrations.get_player(author)
+
+    # ======================================================
+    # !join
+    # ======================================================
+
+    def join(self, username: str, message: str) -> BotResponse:
+
+        s = self.services()
+
+        db = s["db"]
+        queue = s["queue"]
+        registration = s["registration"]
+        activity = s["activity"]
+
+        try:
+
+            if not queue.is_open():
+
+                return BotResponse(
+                    success=False,
+                    message="The queue is currently closed.",
+                    username=username,
+                )
+
+            player = registration.get_player(username)
 
             if player is None:
 
-                youtube.send_message(
-                    f"{author} Please register first using !reg PlayerName"
+                return BotResponse(
+                    success=False,
+                    message="Please register first using !reg PlayerName",
+                    username=username,
                 )
-
-                return
 
             success = queue.join(
-                author,
-                player
+                username,
+                player,
             )
 
-            if success:
-
-                activity.add(f"{author} joined the queue.")
-
-                players = queue.waiting_players()
-
-                position = len(players)
-
-                lobby = (
-                    (position - 1)
-                    // queue.get_lobby_size()
-                ) + 1
-
-                wait = queue.estimated_wait(
-                    position - 1
-                )
-
-                youtube.send_message(
-                    f"{author} Joined! Position #{position} | Lobby {lobby} | Est. {wait}"
-                )
-
-            else:
+            if not success:
 
                 if not queue.is_open():
 
-                    youtube.send_message(
-                        f"{author} Queue is currently CLOSED."
+                    return BotResponse(
+                        success=False,
+                        message="The queue is currently closed.",
+                        username=username,
                     )
 
-                else:
+                return BotResponse(
+                    success=False,
+                    message="You're already in the queue.",
+                    username=username,
+                    player=player,
+                )
 
-                    youtube.send_message(
-                        f"{author} You're already in the queue."
-                    )
+            players = queue.get_players()
 
-            return
+            position = len(players)
 
-        # ------------------------------------
-        # !leave
-        # ------------------------------------
+            lobby_size = queue.get_lobby_size()
 
-        if message == "!leave":
+            lobby = ((position - 1) // lobby_size) + 1
 
-            queue.remove(author)
+            slot = ((position - 1) % lobby_size) + 1
 
-            activity.add(f"{author} left the queue.")
-
-            youtube.send_message(
-                f"{author} You have left the queue."
+            activity.add(
+                f"{username} joined the queue."
             )
 
-            return
+            response = BotResponse(
 
-        # ------------------------------------
-        # !position
-        # ------------------------------------
+                success=True,
 
-        if message == "!position":
+                username=username,
 
-            players = queue.waiting_players()
+                player=player,
 
-            for index, player in enumerate(players):
+                lobby=lobby,
 
-                if player["youtube"].lower() == author.lower():
+                slot=slot,
 
-                    lobby = (
-                        index // queue.get_lobby_size()
-                    ) + 1
+                position=position,
 
-                    wait = queue.estimated_wait(index)
+                queue_size=len(players),
 
-                    youtube.send_message(
-                        f"{author} Position #{index + 1} | Lobby {lobby} | Est. {wait}"
-                    )
+                announce=False,
 
-                    return
+                event="join",
 
-            youtube.send_message(
-                f"{author} You are not currently in the queue."
+                message=(
+                    f"{username} joined "
+                    f"Lobby {lobby} "
+                    f"({slot}/{lobby_size})."
+                ),
+
             )
 
-            return
+            self.pending_announcements.append(response)
 
-        # Ignore everything else.
-        return
+            return response
 
-    finally:
-        db.close()
+        finally:
+
+            db.close()
+    # ======================================================
+    # !leave
+    # ======================================================
+
+    def leave(self, username: str, message: str) -> BotResponse:
+
+        s = self.services()
+
+        db = s["db"]
+        queue = s["queue"]
+        activity = s["activity"]
+
+        try:
+
+            if not queue.remove(username):
+
+                return BotResponse(
+                    success=False,
+                    username=username,
+                    message="You are not currently in the queue.",
+                )
+
+            activity.add(
+                f"{username} left the queue."
+            )
+
+            return BotResponse(
+                success=True,
+                username=username,
+                message="You have left the queue.",
+                announce=False,
+                event="leave",
+            )
+
+        finally:
+
+            db.close()
 
 
-youtube.listen(handle_message)
+    # ======================================================
+    # !position
+    # ======================================================
+
+    def position(self, username: str, message: str) -> BotResponse:
+
+        s = self.services()
+
+        db = s["db"]
+        queue = s["queue"]
+
+        try:
+
+            waiting = queue.get_players()
+
+            lobby_size = queue.get_lobby_size()
+
+            for index, player in enumerate(waiting):
+
+                if player["youtube"].lower() != username.lower():
+                    continue
+
+                lobby = (index // lobby_size) + 1
+
+                slot = (index % lobby_size) + 1
+
+                return BotResponse(
+
+                    success=True,
+
+                    username=username,
+
+                    position=index + 1,
+
+                    lobby=lobby,
+
+                    slot=slot,
+
+                    queue_size=len(waiting),
+
+                    message=(
+                        f"Position #{index + 1} | "
+                        f"Lobby {lobby} | "
+                        f"Slot {slot}/{lobby_size}"
+                    )
+
+                )
+
+            return BotResponse(
+
+                success=False,
+
+                username=username,
+
+                message="You are not currently in the queue."
+
+            )
+
+        finally:
+
+            db.close()
+
+
+    # ======================================================
+    # !queue
+    # ======================================================
+
+    def queue(self, username: str, message: str) -> BotResponse:
+
+        s = self.services()
+
+        db = s["db"]
+        queue = s["queue"]
+
+        try:
+
+            waiting = queue.get_players()
+
+            return BotResponse(
+
+                success=True,
+
+                username=username,
+
+                queue_size=len(waiting),
+
+                message=f"There are currently {len(waiting)} players waiting."
+
+            )
+
+        finally:
+
+            db.close()
+
+
+    # ======================================================
+    # !open
+    # ======================================================
+
+    def open_queue(self, username: str, message: str) -> BotResponse:
+
+        s = self.services()
+
+        db = s["db"]
+        queue = s["queue"]
+        moderator = s["moderator"]
+        activity = s["activity"]
+
+        try:
+
+            if not moderator.is_moderator(username):
+
+                return BotResponse(
+                    success=False,
+                    username=username,
+                    message="You don't have permission.",
+                )
+
+            queue.open_queue()
+
+            activity.add(
+                f"{username} opened the queue."
+            )
+
+            return BotResponse(
+
+                success=True,
+
+                username=username,
+
+                announce=True,
+
+                event="queue_open",
+
+                message="🟢 Queue is now OPEN."
+
+            )
+
+        finally:
+
+            db.close()
+
+
+    # ======================================================
+    # !close
+    # ======================================================
+
+    def close_queue(self, username: str, message: str) -> BotResponse:
+
+        s = self.services()
+
+        db = s["db"]
+        queue = s["queue"]
+        moderator = s["moderator"]
+        activity = s["activity"]
+
+        try:
+
+            if not moderator.is_moderator(username):
+
+                return BotResponse(
+                    success=False,
+                    username=username,
+                    message="You don't have permission.",
+                )
+
+            queue.close_queue()
+
+            activity.add(
+                f"{username} closed the queue."
+            )
+
+            return BotResponse(
+
+                success=True,
+
+                username=username,
+
+                announce=True,
+
+                event="queue_closed",
+
+                message="🔴 Queue is now CLOSED."
+
+            )
+
+        finally:
+
+            db.close()
+    # ======================================================
+    # Utility
+    # ======================================================
+
+    def queue_size(self) -> int:
+
+        s = self.services()
+
+        db = s["db"]
+        queue = s["queue"]
+
+        try:
+
+            return len(queue.get_players())
+
+        finally:
+
+            db.close()
+
+
+    def is_registered(self, username: str) -> bool:
+
+        s = self.services()
+
+        db = s["db"]
+        registration = s["registration"]
+
+        try:
+
+            return registration.get_player(username) is not None
+
+        finally:
+
+            db.close()
+
+
+    def is_moderator(self, username: str) -> bool:
+
+        s = self.services()
+
+        db = s["db"]
+        moderator = s["moderator"]
+
+        try:
+
+            return moderator.is_moderator(username)
+
+        finally:
+
+            db.close()
+
+
+    def get_lobby(self, position: int):
+
+        s = self.services()
+
+        db = s["db"]
+        queue = s["queue"]
+
+        try:
+
+            size = queue.get_lobby_size()
+
+            lobby = ((position - 1) // size) + 1
+
+            slot = ((position - 1) % size) + 1
+
+            return lobby, slot
+
+        finally:
+
+            db.close()
+
+
+    # ======================================================
+    # Announcement Queue
+    # ======================================================
+
+    def queue_announcement(self, response: BotResponse):
+
+        self.pending_announcements.append(response)
+
+
+    def get_pending_announcements(self):
+
+        announcements = self.pending_announcements.copy()
+
+        self.pending_announcements.clear()
+
+        return announcements
+
+
+    # ======================================================
+    # Dispatcher
+    # ======================================================
+
+    def has_command(self, command: str) -> bool:
+
+        return command.lower() in self.command_map
+
+
+    def commands(self):
+
+        return sorted(self.command_map.keys())
+
+
+bot = LlamaBot()

@@ -11,9 +11,7 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DATABASE_URL = (
-    f"sqlite:///{BASE_DIR / 'database' / 'llamaqueue.db'}"
-)
+DATABASE_URL = f"sqlite:///{BASE_DIR / 'database' / 'llamaqueue.db'}"
 
 
 # ==========================================================
@@ -24,25 +22,9 @@ engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},
     future=True,
-    echo=True,
+    echo=False,
 )
 
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-)
-
-class Base(DeclarativeBase):
-    pass
-
-
-def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 # ==========================================================
 # SESSION FACTORY

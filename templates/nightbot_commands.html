@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link
+    rel="stylesheet"
+    href="/static/nightbot_commands.css">
+{% endblock %}
+
+{% block content %}
+
+<h1>🤖 Nightbot Command Manager</h1>
+
+<div class="dashboard-grid">
+
+    <div class="card stat-card">
+
+        <div class="stat-label">
+            Connection
+        </div>
+
+        <div class="stat-value">
+
+            {% if current_user.nightbot_access_token %}
+                🟢 Connected
+            {% else %}
+                🔴 Not Connected
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <div class="card stat-card">
+
+        <div class="stat-label">
+            LlamaQueue Commands
+        </div>
+
+        <div class="stat-number">
+            {{ sync_status|length }}
+        </div>
+
+    </div>
+
+    <div class="card stat-card">
+
+        <div class="stat-label">
+            Nightbot Commands
+        </div>
+
+        <div class="stat-number">
+            {{ nightbot_commands|length }}
+        </div>
+
+    </div>
+
+</div>
+
+<div class="card command-manager">
+
+    <div class="command-header">
+
+        <div>
+
+            <h2>Command Manager</h2>
+
+            <p>
+                Configure every command that LlamaQueue manages in Nightbot.
+            </p>
+
+        </div>
+
+        <div class="header-buttons">
+
+            <button
+                form="commandForm"
+                type="submit"
+                {% if not current_user.nightbot_access_token %}disabled{% endif %}>
+
+                💾 Save Changes
+
+            </button>
+
+            <form
+                method="post"
+                action="/nightbot/commands/sync">
+
+                <button
+                    type="submit"
+                    {% if not current_user.nightbot_access_token %}disabled{% endif %}>
+
+                    🔄 Sync Nightbot
+
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    <div class="command-layout">
+
+        <div class="command-list">
+<form id="commandForm" method="post" action="/nightbot/commands/save">
+
+{% for item in sync_status %}
+
+<div class="command-card">
+
+    <div class="command-card-header">
+
+        <div>
+
+            <h3>{{ item.mapping.description }}</h3>
+
+            <p>
+                {{ item.mapping.action.replace("_", " ").title() }}
+            </p>
+
+        </div>
+
+        <div>
+
+            {% if item.status == "installed" %}
+
+                <span class="badge success">
+                    Installed
+                </span>
+
+            {% elif item.status == "update" %}
+
+                <span class="badge warning">
+                    Needs Sync
+                </span>
+
+            {% else %}
+
+                <span class="badge danger">
+                    Missing
+                </span>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <input
+        type="hidden"
+        name="ids"
+        value="{{ item.mapping.id }}">
+
+    <div class="command-grid">
+
+        <div class="field">
+
+            <label>Command</label>
+
+            <input
+                type="text"
+                name="command_{{ item.mapping.id }}"
+                value="{{ item.mapping.command }}">
+
+        </div>
+
+        <div class="field">
+
+            <label>Permission</label>
+
+            <select name="permission_{{ item.mapping.id }}">
+
+                <option value="everyone"
+                    {% if item.mapping.permission == "everyone" %}selected{% endif %}>
+                    Everyone
+                </option>
+
+                <option value="regular"
+                    {% if item.mapping.permission == "regular" %}selected{% endif %}>
+                    Regular
+                </option>
+
+                <option value="subscriber"
+                    {% if item.mapping.permission == "subscriber" %}selected{% endif %}>
+                    Subscriber
+                </option>
+
+                <option value="moderator"
+                    {% if item.mapping.permission == "moderator" %}selected{% endif %}>
+                    Moderator
+                </option>
+
+                <option value="owner"
+                    {% if item.mapping.permission == "owner" %}selected{% endif %}>
+                    Owner
+                </option>
+
+            </select>
+
+        </div>
+
+        <div class="field">
+
+            <label>Cooldown</label>
+
+            <input
+                type="number"
+                min="0"
+                name="cooldown_{{ item.mapping.id }}"
+                value="{{ item.mapping.cooldown }}">
+
+        </div>
+
+        <div class="field checkbox-field">
+
+            <label>
+
+                <input
+                    type="checkbox"
+                    name="enabled_{{ item.mapping.id }}"
+                    value="1"
+                    {% if item.mapping.enabled %}checked{% endif %}>
+
+                Enabled
+
+            </label>
+
+        </div>
+
+    </div>
+
+       <div class="field response">
+
+        <label>Response</label>
+
+        <textarea
+            name="message_{{ item.mapping.id }}"
+            rows="3">{{ item.mapping.message }}</textarea>
+
+    </div>
+
+    {% if not item.mapping.builtin %}
+
+        <div class="command-actions">
+
+            <button
+                type="submit"
+                class="delete-button"
+                formmethod="post"
+                formaction="/nightbot/commands/delete/{{ item.mapping.id }}"
+                formnovalidate
+                onclick="return confirm('Delete this command?');">
+
+                🗑 Delete Command
+
+            </button>
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+{% endfor %}
+
+</form>
+
+<div class="command-card">
+
+    <h3>➕ Add Custom Command</h3>
+
+    <form method="post" action="/nightbot/commands/add">
+
+        <div class="command-grid">
+
+            <div class="field">
+
+                <label>Name</label>
+
+                <input
+                    type="text"
+                    name="command"
+                    placeholder="!discord">
+
+            </div>
+
+            <div class="field">
+
+                <label>Description</label>
+
+                <input
+                    type="text"
+                    name="description"
+                    placeholder="Discord Command">
+
+            </div>
+
+            <div class="field">
+
+                <label>Permission</label>
+
+                <select name="permission">
+
+                    <option value="everyone">Everyone</option>
+                    <option value="regular">Regular</option>
+                    <option value="subscriber">Subscriber</option>
+                    <option value="moderator">Moderator</option>
+                    <option value="owner">Owner</option>
+
+                </select>
+
+            </div>
+
+            <div class="field">
+
+                <label>Cooldown</label>
+
+                <input
+                    type="number"
+                    name="cooldown"
+                    value="30">
+
+            </div>
+
+        </div>
+
+        <div class="field response">
+
+            <label>Response</label>
+
+            <textarea
+                name="message"
+                rows="4"></textarea>
+
+        </div>
+
+        <button type="submit">
+            ➕ Add Command
+        </button>
+
+    </form>
+
+</div>
+
+        </div>
+
+        <aside class="variables-panel">
+
+            <h3>Variables</h3>
+
+            <p>
+                Use these inside command responses.
+            </p>
+
+            <div class="variable">
+                <code>{user}</code>
+                <span>Viewer name</span>
+            </div>
+
+            <div class="variable">
+                <code>{position}</code>
+                <span>Queue position</span>
+            </div>
+
+            <div class="variable">
+                <code>{queue}</code>
+                <span>Entire queue</span>
+            </div>
+
+            <div class="variable">
+                <code>{queue_count}</code>
+                <span>Current queue size</span>
+            </div>
+
+            <div class="variable">
+                <code>{creator}</code>
+                <span>Streamer name</span>
+            </div>
+
+        </aside>
+
+    </div>
+
+</div>
+
+{% endblock %}

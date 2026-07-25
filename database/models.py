@@ -109,6 +109,46 @@ class User(Base):
         nullable=True,
     )
 
+    nightbot_provider: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+
+    nightbot_provider_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    nightbot_bot_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    nightbot_channel_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    nightbot_display_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    nightbot_avatar: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    nightbot_access_token: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    nightbot_refresh_token: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
     # ------------------------------------------------------
     # Permissions
     # ------------------------------------------------------
@@ -133,6 +173,11 @@ class User(Base):
         back_populates="user",
         uselist=False,
         cascade="all, delete-orphan",
+    )
+
+    communities: Mapped[list["Community"]] = relationship(
+       back_populates="owner",
+       cascade="all, delete-orphan",
     )
 
     registrations: Mapped[list["Registration"]] = relationship(
@@ -237,6 +282,41 @@ class CreatorSettings(Base):
         back_populates="settings",
     )
 
+# ==========================================================
+# COMMUNITIES
+# ==========================================================
+
+class Community(Base):
+    __tablename__ = "communities"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
+    owner_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    description: Mapped[str] = mapped_column(
+        Text,
+        default="",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+    )
+
+    owner: Mapped["User"] = relationship(
+        back_populates="communities",
+    )
 
 # ==========================================================
 # REGISTRATIONS
@@ -350,7 +430,22 @@ class Moderator(Base):
     moderator_name: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
+        index=True,
     )
+
+    # Queue
+    can_open_queue: Mapped[bool] = mapped_column(Boolean, default=True)
+    can_close_queue: Mapped[bool] = mapped_column(Boolean, default=True)
+    can_launch_lobby: Mapped[bool] = mapped_column(Boolean, default=True)
+    can_remove_players: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Community
+    can_manage_registrations: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_manage_members: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Administration
+    can_manage_moderators: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_edit_settings: Mapped[bool] = mapped_column(Boolean, default=False)
 
     added_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -465,3 +560,78 @@ class ActivityLog(Base):
     user: Mapped["User"] = relationship(
         back_populates="activity_logs",
     )        
+
+# ==========================================================
+# COMMAND MAPPINGS
+# ==========================================================
+
+class CommandMapping(Base):
+    __tablename__ = "command_mappings"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+
+    # Internal identifier
+    action: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+
+    # Nightbot command
+    command: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+
+    # Creator editable response
+    message: Mapped[str] = mapped_column(
+        Text,
+        default="",
+        nullable=False,
+    )
+
+    permission: Mapped[str] = mapped_column(
+        String(50),
+        default="everyone",
+    )
+
+    cooldown: Mapped[int] = mapped_column(
+        Integer,
+        default=30,
+        nullable=False,
+    )
+
+    enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    builtin: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+
+    description: Mapped[str] = mapped_column(
+        String(255),
+        default="",
+        nullable=False,
+    )

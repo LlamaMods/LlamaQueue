@@ -8,7 +8,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 
-class YouTubeManager:
+class YouTubeService:
 
     SCOPES = [
         "https://www.googleapis.com/auth/youtube.force-ssl"

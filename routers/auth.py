@@ -6,7 +6,8 @@ import requests
 
 from auth.google import oauth as google_oauth
 from auth.twitch import oauth as twitch_oauth
-from database.models import User
+from auth.nightbot import oauth as nightbot_oauth
+from database.models import User, Community 
 from database.session import SessionLocal
 
 router = APIRouter(
@@ -30,6 +31,15 @@ async def login_twitch(request: Request):
         request.url_for("twitch_callback"),
     )
 
+@router.get("/login/nightbot")
+async def login_nightbot(request: Request):
+    redirect_uri = str(request.url_for("nightbot_callback"))
+
+
+    return await nightbot_oauth.nightbot.authorize_redirect(
+        request,
+        redirect_uri,
+    )
 
 @router.get("/twitch/callback", name="twitch_callback")
 async def twitch_callback(request: Request):
@@ -84,12 +94,90 @@ async def twitch_callback(request: Request):
     db.commit()
     db.refresh(existing_user)
 
+    community = (
+        db.query(Community)
+        .filter(Community.owner_user_id == existing_user.id)
+        .first()
+    )
+
+    if community is None:
+        community = Community(
+            owner_user_id=existing_user.id,
+            name=(
+                existing_user.youtube_channel_name
+                or existing_user.display_name
+                or "My Community"
+            ),
+        )
+
+        db.add(community)
+        db.commit()
+        db.refresh(community)
+
     request.session["user_id"] = existing_user.id
+    request.session["community_id"] = community.id
 
     db.close()
 
     return RedirectResponse(url="/")
 
+@router.get("/nightbot/callback", name="nightbot_callback")
+async def nightbot_callback(request: Request):
+    token = await nightbot_oauth.nightbot.authorize_access_token(request)
+
+    response = await nightbot_oauth.nightbot.get(
+        "https://api.nightbot.tv/1/channel",
+        token=token,
+    )
+
+    channel = response.json()["channel"]
+
+    db: Session = SessionLocal()
+
+    existing_user = (
+        db.query(User)
+        .filter(User.nightbot_user_id == channel["_id"])
+        .first()
+    )
+
+    if existing_user is None:
+        existing_user = (
+            db.query(User)
+            .filter(User.youtube_channel_id == channel["providerId"])
+            .first()
+        )
+
+    if existing_user is None:
+        db.close()
+        return RedirectResponse("/")
+
+    existing_user.nightbot_user_id = channel["_id"]
+    existing_user.nightbot_provider = channel["provider"]
+    existing_user.nightbot_provider_id = channel["providerId"]
+    existing_user.nightbot_bot_id = channel["botId"]
+    existing_user.nightbot_channel_name = channel["name"]
+    existing_user.nightbot_display_name = channel["displayName"]
+    existing_user.nightbot_avatar = channel["avatar"]
+
+    existing_user.nightbot_access_token = token.get("access_token")
+    existing_user.nightbot_refresh_token = token.get("refresh_token")
+
+    db.commit()
+
+    request.session["user_id"] = existing_user.id
+
+    community = (
+        db.query(Community)
+        .filter(Community.owner_user_id == existing_user.id)
+        .first()
+    )
+
+    if community:
+        request.session["community_id"] = community.id
+
+    db.close()
+
+    return RedirectResponse(url="/")
 
 @router.get("/callback/google", name="auth_callback")
 async def auth_callback(request: Request):
@@ -105,7 +193,7 @@ async def auth_callback(request: Request):
     access_token = token.get("access_token")
 
     if access_token:
-        response = requests.get(
+        response = requests.get(\
             "https://www.googleapis.com/youtube/v3/channels",
             params={
                 "part": "snippet",
@@ -170,7 +258,28 @@ async def auth_callback(request: Request):
     db.commit()
     db.refresh(existing_user)
 
+    community = (
+        db.query(Community)
+        .filter(Community.owner_user_id == existing_user.id)
+        .first()
+    )
+
+    if community is None:
+        community = Community(
+            owner_user_id=existing_user.id,
+            name=(
+                existing_user.youtube_channel_name
+                or existing_user.display_name
+                or "My Community"
+            ),
+        )
+
+        db.add(community)
+        db.commit()
+        db.refresh(community)
+
     request.session["user_id"] = existing_user.id
+    request.session["community_id"] = community.id
 
     db.close()
 

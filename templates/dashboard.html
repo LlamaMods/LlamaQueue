@@ -12,6 +12,130 @@
 
         <!-- LEFT COLUMN -->
 
+        <div class="main-column">
+
+            <div class="card">
+
+                <h2>🎮 Current Party</h2>
+
+                <table
+                    class="mission-table"
+                    id="current-party-table">
+
+                    <tr>
+                        <th>YouTube</th>
+                        <th>Player</th>
+                    </tr>
+
+                    {% for player in current %}
+
+                    <tr>
+
+                        <td>{{ player.youtube }}</td>
+
+                        <td>
+                            {{ player.player if player.player else "Not Set" }}
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </table>
+
+                <p
+                    id="current-empty"
+                    {% if current %}
+                    style="display:none"
+                    {% endif %}>
+
+                    No players currently in the party.
+
+                </p>
+
+                <div class="buttons">
+
+                    <button
+                        type="button"
+                        onclick="copyLobby()">
+
+                        📋 Copy Player Names
+
+                    </button>
+
+                    <button
+                        type="button"
+                        onclick="copyLastLobby()">
+                        📚 Copy Last Lobby
+                    </button>
+
+                    <form action="/complete" method="post">
+
+                        <button>
+                            🚀 Launch Party
+                        </button>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+            <div class="card">
+
+                <h2>⏭ Next Party</h2>
+
+                <table
+                    class="mission-table"
+                    id="next-party-table">
+
+                    <tr>
+                        <th>YouTube</th>
+                        <th>Player</th>
+                    </tr>
+
+                    {% for player in next_lobby %}
+
+                    <tr>
+
+                        <td>{{ player.youtube }}</td>
+
+                        <td>
+                            {{ player.player if player.player else "Not Set" }}
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </table>
+
+                <p
+                    id="next-empty"
+                    {% if next_lobby %}
+                    style="display:none"
+                    {% endif %}>
+
+                    The queue is empty.
+
+                </p>
+
+                <p
+                    class="queue-summary"
+                    id="waiting-summary">
+
+                    {% if remaining_waiting > 0 %}
+                        {{ remaining_waiting }} more player(s) waiting...
+                    {% endif %}
+
+                </p>
+
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+
         <div class="side-column">
 
             <!-- Mission Controls -->
@@ -30,7 +154,7 @@
 
                 </div>
 
-                <div class="status-card">
+                <div class="party-size-card">
 
                     <span>Party Size</span>
 
@@ -38,26 +162,18 @@
 
                         <button
                             type="button"
-                            class="party-button"
+                            class="party-mini-button"
                             onclick="decreaseParty()">
-
                             −
-
                         </button>
 
-                        <strong id="party-size">
-
-                            {{ party_size }}
-
-                        </strong>
+                        <strong id="party-size">{{ party_size }}</strong>
 
                         <button
-                            type="button"
-                            class="party-button"
-                            onclick="increaseParty()">
-
-                            +
-
+                             type="button"
+                             class="party-mini-button"
+                             onclick="increaseParty()">
+                             +
                         </button>
 
                     </div>
@@ -154,126 +270,6 @@
 
         </div>
 
-        <!-- RIGHT COLUMN -->
-
-        <div class="main-column">
-
-            <div class="card">
-
-                <h2>🎮 Current Party</h2>
-
-                <table
-                    class="mission-table"
-                    id="current-party-table">
-
-                    <tr>
-                        <th>YouTube</th>
-                        <th>Player</th>
-                    </tr>
-
-                    {% for player in current %}
-
-                    <tr>
-
-                        <td>{{ player.youtube }}</td>
-
-                        <td>
-                            {{ player.player if player.player else "Not Set" }}
-                        </td>
-
-                    </tr>
-
-                    {% endfor %}
-
-                </table>
-
-                <p
-                    id="current-empty"
-                    {% if current %}
-                    style="display:none"
-                    {% endif %}>
-
-                    No players currently in the party.
-
-                </p>
-
-                <div class="buttons">
-
-                    <button
-                        type="button"
-                        onclick="copyLobby()">
-
-                        📋 Copy Player Names
-
-                    </button>
-
-                    <form action="/complete" method="post">
-
-                        <button>
-                            🚀 Launch Party
-                        </button>
-
-                    </form>
-
-                </div>
-
-            </div>
-
-            <div class="card">
-
-                <h2>⏭ Next Party</h2>
-
-                <table
-                    class="mission-table"
-                    id="next-party-table">
-
-                    <tr>
-                        <th>YouTube</th>
-                        <th>Player</th>
-                    </tr>
-
-                    {% for player in next_lobby %}
-
-                    <tr>
-
-                        <td>{{ player.youtube }}</td>
-
-                        <td>
-                            {{ player.player if player.player else "Not Set" }}
-                        </td>
-
-                    </tr>
-
-                    {% endfor %}
-
-                </table>
-
-                <p
-                    id="next-empty"
-                    {% if next_lobby %}
-                    style="display:none"
-                    {% endif %}>
-
-                    The queue is empty.
-
-                </p>
-
-                <p
-                    class="queue-summary"
-                    id="waiting-summary">
-
-                    {% if remaining_waiting > 0 %}
-                        {{ remaining_waiting }} more player(s) waiting...
-                    {% endif %}
-
-                </p>
-
-            </div>
-
-        </div>
-
-    </div>
-
 </div>
 
 <script>
@@ -293,7 +289,26 @@ function copyLobby(){
     );
 
     alert("Player names copied!");
+}
 
+const historyData = {{ history|tojson }};
+
+function copyLastLobby() {
+
+    if (!historyData.length) {
+        alert("No previous lobbies found.");
+        return;
+    }
+
+    const lastLobby = historyData[0];
+
+    const names = lastLobby.players
+        .map(player => player.player || player.youtube)
+        .join("\n");
+
+    navigator.clipboard.writeText(names);
+
+    alert("Last lobby copied!");
 }
 
 async function refreshDashboard(){

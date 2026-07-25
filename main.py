@@ -10,6 +10,7 @@ from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
     RedirectResponse,
+    Response,
 )
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -18,14 +19,19 @@ from starlette.middleware.sessions import SessionMiddleware
 from auth.dependencies import get_current_user
 from auth.google import oauth
 from database.models import User
+from database.models import CommandMapping
 from database.session import Base, engine, SessionLocal
 
 from services.history_service import HistoryService
+from services.moderator_service import ModeratorService
 from routers.auth import router as auth_router
 
+from services.command_service import CommandService
+from services.nightbot_service import NightbotService
 from services.queue_service import QueueService
 from services.registration_service import RegistrationService
 from services.settings_service import SettingsService
+from typing import List
 
 app = FastAPI()
 
@@ -52,7 +58,7 @@ def get_services(request: Request):
     current_user = get_current_user(request)
 
     if current_user is None:
-        return None, None, None, None, db
+        return None, None, None, None, None, db
 
     user = (
         db.query(User)
@@ -64,8 +70,9 @@ def get_services(request: Request):
     registrations = RegistrationService(db, user)
     settings = SettingsService(db, user)
     history = HistoryService(db, user)
+    moderators = ModeratorService(db, user)
 
-    return queue, registrations, settings, history, db
+    return queue, registrations, settings, history, moderators, db
 
 templates = Jinja2Templates(
     directory="templates",
@@ -85,7 +92,7 @@ def home(request: Request):
 
     current_user = get_current_user(request)
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     print("API current user:", get_current_user(request))
     print("API queue:", queue)
@@ -171,6 +178,40 @@ def home(request: Request):
 # Registration
 # -------------------------
 
+from fastapi import Header, Query
+
+
+@app.post("/nightbot")
+async def nightbot(
+    request: Request,
+    command: str = Query(...),
+    player: str | None = Query(None),
+    nightbot_channel: str = Header(alias="Nightbot-Channel"),
+    nightbot_user: str = Header(alias="Nightbot-User"),
+):
+    channel = json.loads(nightbot_channel)
+    user = json.loads(nightbot_user)
+
+    creator_name = channel["name"]
+    chatter_name = user["name"]
+
+    bot = LlamaBot(creator_name)
+
+    if command == "reg":
+        message = f"!reg {player}"
+    else:
+        message = f"!{command}"
+
+    response = bot.process(
+        username=chatter_name,
+        message=message,
+    )
+
+    return Response(
+        content=response.message,
+        media_type="text/plain",
+    )
+    
 @app.post("/register")
 def register(
     request: Request,
@@ -178,7 +219,7 @@ def register(
     player: str = Form(...)
 ):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if registrations is None:
         db.close()
@@ -197,7 +238,7 @@ def join(
     youtube: str = Form(...)
 ):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if queue is None:
         db.close()
@@ -222,7 +263,7 @@ def remove(
     next: str = Form("/")
 ):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if queue is None:
         db.close()
@@ -248,7 +289,7 @@ def move_up(
     next: str = Form("/")
 ):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if queue is None:
         db.close()
@@ -271,7 +312,7 @@ def move_down(
     next: str = Form("/")
 ):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if queue is None:
         db.close()
@@ -294,7 +335,7 @@ def move_front(
     next: str = Form("/")
 ):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if queue is None:
         db.close()
@@ -316,7 +357,7 @@ def move_front(
 @app.post("/complete")
 def complete(request: Request):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if queue is None:
         db.close()
@@ -337,7 +378,7 @@ def complete(request: Request):
 @app.post("/open")
 def open_queue(request: Request):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if queue is None:
         db.close()
@@ -353,7 +394,7 @@ def open_queue(request: Request):
 @app.post("/close")
 def close_queue(request: Request):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if queue is None:
         db.close()
@@ -372,7 +413,7 @@ def close_queue(request: Request):
 @app.post("/party/increase")
 def increase_party(request: Request):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if settings is None:
         db.close()
@@ -392,7 +433,7 @@ def increase_party(request: Request):
 @app.post("/party/decrease")
 def decrease_party(request: Request):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if settings is None:
         db.close()
@@ -415,7 +456,7 @@ def decrease_party(request: Request):
 @app.get("/queue")
 def queue_page(request: Request):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if queue is None:
         db.close()
@@ -485,7 +526,7 @@ def queue_page(request: Request):
 @app.get("/history")
 def history_page(request: Request):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if history is None:
         db.close()
@@ -521,7 +562,7 @@ def delete_history(
     lobby_id: int = Form(...)
 ):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if history is None:
         db.close()
@@ -539,7 +580,7 @@ def delete_history(
 @app.get("/statistics")
 def statistics_page(request: Request):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if history is None:
         db.close()
@@ -570,10 +611,281 @@ def statistics_page(request: Request):
 # Settings
 # -------------------------
 
+@app.get("/nightbot/commands")
+def nightbot_commands(request: Request):
+
+    queue, registrations, settings, history, moderators, db = get_services(request)
+
+    if settings is None:
+        db.close()
+        return RedirectResponse("/login", status_code=302)
+
+    current_user = get_current_user(request)
+    
+    command_service = CommandService(db, current_user.id)
+
+    nightbot = NightbotService(current_user)
+
+    try:
+        nightbot_commands = nightbot.list_commands()
+    except Exception:
+        nightbot_commands = []
+
+    response = templates.TemplateResponse(
+        request=request,
+        name="nightbot_commands.html",
+        context={
+            "title": "Nightbot Commands",
+            "current_user": current_user,
+            "settings": settings.get_all(),
+            "sync_status": command_service.get_sync_status(
+                nightbot_commands
+            ),
+            "nightbot_commands": nightbot_commands,
+        },
+    )
+
+    db.close()
+
+    return response
+
+@app.post("/nightbot/commands/save")
+async def save_nightbot_commands(
+    request: Request,
+):
+
+    queue, registrations, settings, history, moderators, db = get_services(request)
+
+    if settings is None:
+        db.close()
+        return RedirectResponse("/login", status_code=302)
+
+    form = await request.form()
+
+    ids = [int(x) for x in form.getlist("ids")]
+
+    mappings = (
+        db.query(CommandMapping)
+        .filter(CommandMapping.id.in_(ids))
+        .all()
+    )
+
+    mapping_lookup = {
+        mapping.id: mapping
+        for mapping in mappings
+    }
+
+    for mapping_id in ids:
+
+        mapping = mapping_lookup.get(mapping_id)
+
+        if mapping is None:
+            continue
+
+        mapping.command = form.get(
+            f"command_{mapping_id}",
+            mapping.command,
+        ).strip()
+
+        mapping.message = form.get(
+            f"message_{mapping_id}",
+            mapping.message,
+        )
+
+        mapping.permission = form.get(
+            f"permission_{mapping_id}",
+            mapping.permission,
+        )
+
+        try:
+            mapping.cooldown = int(
+                form.get(
+                    f"cooldown_{mapping_id}",
+                    mapping.cooldown,
+                )
+            )
+        except (TypeError, ValueError):
+            pass
+
+        mapping.enabled = (
+            form.get(f"enabled_{mapping_id}") == "1"
+        )
+
+    db.commit()
+    db.close()
+
+    return RedirectResponse(
+        "/nightbot/commands",
+        status_code=303,
+    )
+
+
+@app.post("/nightbot/commands/add")
+async def add_nightbot_command(request: Request):
+
+    queue, registrations, settings, history, moderators, db = get_services(request)
+
+    if settings is None:
+        db.close()
+        return RedirectResponse("/login", status_code=302)
+
+    current_user = get_current_user(request)
+
+    form = await request.form()
+
+    command = form.get("command", "").strip()
+
+    if command and not command.startswith("!"):
+        command = "!" + command
+
+    mapping = CommandMapping(
+        user_id=current_user.id,
+        action=f"custom_{command.lstrip('!')}",
+        command=command,
+        description=form.get("description", "Custom Command"),
+        message=form.get("message", ""),
+        permission=form.get("permission", "everyone"),
+        cooldown=int(form.get("cooldown", 30)),
+        enabled=True,
+        builtin=False,
+    )
+
+    db.add(mapping)
+    db.commit()
+    db.close()
+
+    return RedirectResponse(
+        "/nightbot/commands",
+        status_code=303,
+    )
+
+@app.post("/nightbot/commands/delete/{mapping_id}")
+def delete_nightbot_command(
+    mapping_id: int,
+    request: Request,
+):
+
+    queue, registrations, settings, history, moderators, db = get_services(request)
+
+    if settings is None:
+        db.close()
+        return RedirectResponse("/login", status_code=302)
+
+    current_user = get_current_user(request)
+
+    mapping = (
+        db.query(CommandMapping)
+        .filter(CommandMapping.id == mapping_id)
+        .first()
+    )
+
+    print(f"mapping_id={mapping_id}")
+    print(f"user_id={current_user.id}")
+    print(f"mapping={mapping}")
+    
+    if mapping is not None:
+        db.delete(mapping)
+        db.commit()
+
+    db.close()
+
+    return RedirectResponse(
+        "/nightbot/commands",
+        status_code=303,
+    )
+    
+@app.post("/nightbot/commands/sync")
+def sync_nightbot_commands(request: Request):
+
+    queue, registrations, settings, history, moderators, db = get_services(request)
+
+    if settings is None:
+        db.close()
+        return RedirectResponse("/login", status_code=302)
+
+    current_user = get_current_user(request)
+
+    command_service = CommandService(db, current_user.id)
+    nightbot = NightbotService(current_user)
+
+    try:
+        nightbot_commands = nightbot.list_commands()
+        sync_status = command_service.get_sync_status(
+            nightbot_commands
+        )
+
+        base_url = str(request.base_url).rstrip("/")
+
+        for item in sync_status:
+
+            mapping = item["mapping"]
+
+            if mapping.action == "join_queue":
+                response = f"$(urlfetch {base_url}/nightbot?command=join)"
+
+            elif mapping.action == "register_player":
+                response = (
+                    f"$(urlfetch {base_url}/nightbot?command=reg"
+                    f"&player=$(querystring))"
+                )
+
+            elif mapping.action == "leave_queue":
+                response = f"$(urlfetch {base_url}/nightbot?command=leave)"
+
+            elif mapping.action == "queue_position":
+                response = f"$(urlfetch {base_url}/nightbot?command=position)"
+
+            elif mapping.action == "queue_size":
+                response = f"$(urlfetch {base_url}/nightbot?command=queue)"
+
+            else:
+                response = mapping.message
+
+            if item["status"] == "missing":
+
+                nightbot.create_command(
+                    mapping.command,
+                    response,
+                    mapping.permission,
+                    mapping.cooldown,
+                )
+
+            elif item["status"] == "update":
+
+                nightbot.update_command(
+                    item["nightbot"]["_id"],
+                    mapping.command,
+                    response,
+                    mapping.permission,
+                    mapping.cooldown,
+                )
+
+    except Exception as ex:
+
+        print(ex)
+
+    db.close()
+
+    return RedirectResponse(
+        "/nightbot/commands",
+        status_code=303,
+    )
+
+    except Exception as ex:
+
+        print(ex)
+
+    db.close()
+
+    return RedirectResponse(
+        "/nightbot/commands",
+        status_code=303,
+    )
+
 @app.get("/settings")
 def settings_page(request: Request):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if settings is None:
         db.close()
@@ -614,7 +926,7 @@ def save_settings(
 
     print("=== ENTERED /settings/save ===")
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if settings is None:
         db.close()
@@ -645,7 +957,7 @@ def save_settings(
 @app.post("/test_queue")
 def populate_test_queue(request: Request):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if queue is None:
         db.close()
@@ -680,13 +992,120 @@ def populate_test_queue(request: Request):
     return RedirectResponse("/", status_code=303)
 
 # -------------------------
+# Moderators
+# -------------------------
+
+@app.get("/moderators")
+def moderators_page(request: Request):
+
+    queue, registrations, settings, history, moderators, db = get_services(request)
+
+    if moderators is None:
+        db.close()
+        return RedirectResponse("/login", status_code=302)
+
+    current_user = get_current_user(request)
+
+    response = templates.TemplateResponse(
+        request=request,
+        name="moderators.html",
+        context={
+            "title": "Moderators",
+            "current_user": current_user,
+            "settings": settings.get_all(),
+            "moderators": moderators.get_all(),
+            "count": moderators.count(),
+        }
+    )
+
+    db.close()
+
+    return response
+
+@app.post("/moderators/add")
+def add_moderator(
+    request: Request,
+    youtube_name: str = Form(...)
+):
+
+    queue, registrations, settings, history, moderators, db = get_services(request)
+
+    if moderators is None:
+        db.close()
+        return RedirectResponse("/login", status_code=302)
+
+    moderators.add(youtube_name)
+
+    db.close()
+
+    return RedirectResponse("/moderators", status_code=303)
+
+@app.post("/moderators/delete")
+def delete_moderator(
+    request: Request,
+    youtube_name: str = Form(...)
+):
+
+    queue, registrations, settings, history, moderators, db = get_services(request)
+
+    if moderators is None:
+        db.close()
+        return RedirectResponse("/login", status_code=302)
+
+    moderators.remove(youtube_name)
+
+    db.close()
+
+    return RedirectResponse("/moderators", status_code=303)   
+
+@app.post("/moderators/update")
+def update_moderator(
+    request: Request,
+
+    youtube_name: str = Form(...),
+
+    can_open_queue: bool = Form(False),
+    can_close_queue: bool = Form(False),
+    can_launch_lobby: bool = Form(False),
+    can_remove_players: bool = Form(False),
+    can_manage_registrations: bool = Form(False),
+    can_manage_members: bool = Form(False),
+    can_manage_moderators: bool = Form(False),
+    can_edit_settings: bool = Form(False),
+):
+
+    queue, registrations, settings, history, moderators, db = get_services(request)
+
+    if moderators is None:
+        db.close()
+        return RedirectResponse("/login", status_code=302)
+
+    moderators.update_permissions(
+        youtube_name,
+
+        can_open_queue=can_open_queue,
+        can_close_queue=can_close_queue,
+        can_launch_lobby=can_launch_lobby,
+        can_remove_players=can_remove_players,
+
+        can_manage_registrations=can_manage_registrations,
+        can_manage_members=can_manage_members,
+        can_manage_moderators=can_manage_moderators,
+        can_edit_settings=can_edit_settings,
+    )
+
+    db.close()
+
+    return RedirectResponse("/moderators", status_code=303)
+
+# -------------------------
 # API
 # -------------------------
 
 @app.get("/api/dashboard")
 def api_dashboard(request: Request):
 
-    queue, registrations, settings, history, db = get_services(request)
+    queue, registrations, settings, history, moderators, db = get_services(request)
 
     if queue is None:
         db.close()

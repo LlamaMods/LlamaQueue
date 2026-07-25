@@ -1,0 +1,468 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container">
+
+    <h1>🛡 Moderator Management</h1>
+
+    <p class="page-subtitle">
+        Invite trusted moderators and control exactly what they can do.
+    </p>
+
+    <div class="dashboard-grid">
+
+        <!-- ================================= -->
+        <!-- LEFT COLUMN -->
+        <!-- ================================= -->
+
+        <div class="side-column">
+
+            <!-- Overview -->
+
+            <div class="card">
+
+                <h2>Overview</h2>
+
+                <div class="status-grid">
+
+                    <div class="status-card">
+
+                        <div>
+
+                            <span>Total</span>
+
+                            <strong>
+
+                                {{ moderators|length }}
+
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                    <div class="status-card">
+
+                        <div>
+
+                            <span>Linked</span>
+
+                            <strong>
+
+                                {{ moderators
+                                    | selectattr("linked_user")
+                                    | list
+                                    | length }}
+
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                    <div class="status-card">
+
+                        <div>
+
+                            <span>Pending</span>
+
+                            <strong>
+
+                                {{ moderators
+                                    | rejectattr("linked_user")
+                                    | list
+                                    | length }}
+
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Add Moderator -->
+
+            <div class="card">
+
+                <h2>➕ Add Moderator</h2>
+
+                    <p class="form-help">
+                        New moderators are created with the default queue permissions. You can customize their permissions after creation.
+                    </p>                
+
+                <form
+                    action="/moderators/add"
+                    method="post">
+
+                    <label>
+
+                        YouTube Name
+
+                    </label>
+
+                    <input
+                        type="text"
+                        name="youtube_name"
+                        placeholder="PocketPlays42"
+                        required>
+
+                    
+
+                    <button
+                        type="submit"
+                        class="primary-button">
+
+                        ➕ Create Moderator
+
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+        <!-- ================================= -->
+        <!-- RIGHT COLUMN -->
+        <!-- ================================= -->
+
+        <div class="main-column">
+
+            <div class="card">
+
+                <h2>Moderator Team</h2>
+
+                <p class="page-subtitle">
+                    Manage permissions, invitations and linked accounts.
+                </p>
+                {% if moderators %}
+
+                    {% for moderator in moderators %}
+
+                    <div class="moderator-card">
+
+                        <!-- ===================== -->
+                        <!-- Header -->
+                        <!-- ===================== -->
+
+                        <div class="moderator-header">
+
+                            <div>
+
+                                <h3>
+
+                                    {{ moderator.moderator_name }}
+
+                                </h3>
+
+                            
+
+                                    <span class="status-pill linked">
+                                        🛡 Moderator
+                                    </span>
+
+
+
+                            
+
+                            </div>
+
+                            <button
+                               id="edit-btn-{{ moderator.id }}"
+                               type="button"
+                               class="secondary-button edit-button"
+                               onclick="toggleModerator('{{ moderator.id }}')">
+
+                               ✏ Edit
+
+                            </button>
+
+                        </div>
+
+                        <form
+                            action="/moderators/update"
+                            method="post">
+
+                            <input
+                                type="hidden"
+                                name="youtube_name"
+                                value="{{ moderator.moderator_name }}">
+
+                            <div
+                                id="editor-{{ moderator.id }}"
+                                class="moderator-editor">
+
+                            <!-- ===================== -->
+                            <!-- Queue Controls -->
+                            <!-- ===================== -->
+
+                            <div class="permission-section">
+
+                                <h4>
+
+                                    Queue Controls
+
+                                </h4>
+
+                                <div class="permission-grid">
+
+                                    <label class="checkbox-label">
+
+                                        <input
+                                            type="checkbox"
+                                            name="can_open_queue"
+                                            {% if moderator.can_open_queue %}checked{% endif %}>
+
+                                        Open Queue
+
+                                    </label>
+
+                                    <label class="checkbox-label">
+
+                                        <input
+                                            type="checkbox"
+                                            name="can_close_queue"
+                                            {% if moderator.can_close_queue %}checked{% endif %}>
+
+                                        Close Queue
+
+                                    </label>
+
+                                    <label class="checkbox-label">
+
+                                        <input
+                                            type="checkbox"
+                                            name="can_launch_lobby"
+                                            {% if moderator.can_launch_lobby %}checked{% endif %}>
+
+                                        Launch Lobby
+
+                                    </label>
+
+                                    <label class="checkbox-label">
+
+                                        <input
+                                            type="checkbox"
+                                            name="can_remove_players"
+                                            {% if moderator.can_remove_players %}checked{% endif %}>
+
+                                        Remove Players
+
+                                    </label>
+
+                                </div>
+
+                            </div>
+
+                            <!-- ===================== -->
+                            <!-- Management -->
+                            <!-- ===================== -->
+
+                            <div class="permission-section">
+
+                                <h4>
+
+                                    Management
+
+                                </h4>
+
+                                <div class="permission-grid">
+
+                                    <label class="checkbox-label">
+
+                                        <input
+                                            type="checkbox"
+                                            name="can_manage_registrations"
+                                            {% if moderator.can_manage_registrations %}checked{% endif %}>
+
+                                        Registrations
+
+                                    </label>
+
+                                    <label class="checkbox-label">
+
+                                        <input
+                                            type="checkbox"
+                                            name="can_manage_members"
+                                            {% if moderator.can_manage_members %}checked{% endif %}>
+
+                                        Members
+
+                                    </label>
+
+                                    <label class="checkbox-label">
+
+                                        <input
+                                            type="checkbox"
+                                            name="can_manage_moderators"
+                                            {% if moderator.can_manage_moderators %}checked{% endif %}>
+
+                                        Moderators
+
+                                    </label>
+
+                                    <label class="checkbox-label">
+
+                                        <input
+                                            type="checkbox"
+                                            name="can_edit_settings"
+                                            {% if moderator.can_edit_settings %}checked{% endif %}>
+
+                                        Settings
+
+                                    </label>
+
+                                </div>
+
+                            </div>
+                            <!-- ===================== -->
+                            <!-- Invite Link -->
+                            <!-- ===================== -->
+
+                            {#
+
+                            <div class="invite-section">
+
+                                <h4>Invite Link</h4>
+
+                                <div class="invite-row">
+
+                                    <input
+                                        id="invite-{{ moderator.id }}"
+                                        type="text"
+                                        readonly
+                                        value="{% if moderator.invite_token %}{{ request.base_url }}invite/{{ moderator.invite_token }}{% endif %}">
+
+                                    <button
+                                        type="button"
+                                        class="secondary-button"
+                                        onclick="copyInvite('invite-{{ moderator.id }}')">
+
+                                        📋 Copy
+
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                            #}
+
+                            <!-- ===================== -->
+                            <!-- Footer -->
+                            <!-- ===================== -->
+
+                            <div class="moderator-footer">
+
+                                <button
+                                    type="submit"
+                                    class="primary-button">
+
+                                    💾 Save Changes
+
+                                </button>
+
+                            </div>
+
+                            <form
+                                action="/moderators/delete"
+                                method="post"
+                                class="delete-form">
+
+                                <input
+                                    type="hidden"
+                                    name="youtube_name"
+                                    value="{{ moderator.moderator_name }}">
+
+                                <button
+                                    class="danger-button">
+
+                                    🗑 Delete Moderator
+
+                                </button>
+
+                            </form> 
+
+                            </div>
+
+                        </form>
+
+
+                    {% endfor %}
+
+                {% else %}
+
+                    <div class="card empty-card">
+
+                        <h3>No Moderators Yet</h3>
+
+                        <p>
+
+                            Create your first moderator using the panel on the left.
+
+                        </p>
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+function copyInvite(id){
+
+    const input = document.getElementById(id);
+
+    input.select();
+    input.setSelectionRange(0,99999);
+
+    navigator.clipboard.writeText(input.value);
+
+}
+
+function toggleModerator(id){
+
+    const editor = document.getElementById("editor-" + id);
+
+    if(!editor) return;
+
+    const button = document.getElementById("edit-btn-" + id);
+
+    const isOpen = editor.classList.contains("show");
+
+    // Reset everything
+    document.querySelectorAll(".moderator-editor").forEach(e=>{
+        e.classList.remove("show");
+    });
+
+    document.querySelectorAll(".edit-button").forEach(b=>{
+        b.innerHTML = "✏ Edit";
+    });
+
+    // If it wasn't already open, open it
+    if(!isOpen){
+
+        editor.classList.add("show");
+
+        if(button){
+            button.innerHTML = "▲ Hide";
+        }
+
+    }
+
+}
+
+</script>
+
+{% endblock %}
