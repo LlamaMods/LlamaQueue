@@ -187,14 +187,30 @@ async def nightbot(
     request: Request,
     command: str = Query(...),
     player: str | None = Query(None),
-    nightbot_channel: str = Header(alias="Nightbot-Channel"),
-    nightbot_user: str = Header(alias="Nightbot-User"),
+    nightbot_channel: str | None = Header(default=None, alias="Nightbot-Channel"),
+    nightbot_user: str | None = Header(default=None, alias="Nightbot-User"),
 ):
-    channel = json.loads(nightbot_channel)
-    user = json.loads(nightbot_user)
+    creator_name = request.query_params.get("channel")
+    chatter_name = request.query_params.get("user")
 
-    creator_name = channel["name"]
-    chatter_name = user["name"]
+    if nightbot_channel:
+        try:
+            creator_name = json.loads(nightbot_channel)["name"]
+        except Exception:
+            pass
+
+    if nightbot_user:
+        try:
+            chatter_name = json.loads(nightbot_user)["name"]
+        except Exception:
+            pass
+
+    if not creator_name or not chatter_name:
+        return Response(
+            content="Missing Nightbot user/channel.",
+            media_type="text/plain",
+            status_code=400,
+        )
 
     bot = LlamaBot(creator_name)
 
