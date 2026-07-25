@@ -36,7 +36,7 @@ async def login_nightbot(request: Request):
     redirect_uri = str(request.url_for("nightbot_callback"))
 
     print("Redirect URI:", redirect_uri)
-    response = await oauth.nightbot.authorize_redirect(
+    response = await nightbot_oauth.nightbot.authorize_redirect(
         request,
         redirect_uri,
     )
