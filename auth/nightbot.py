@@ -1,5 +1,8 @@
 import os
 
+print("NIGHTBOT_CLIENT_ID =", repr(os.getenv("NIGHTBOT_CLIENT_ID")))
+print("NIGHTBOT_CLIENT_SECRET =", repr(os.getenv("NIGHTBOT_CLIENT_SECRET")))
+
 from authlib.integrations.starlette_client import OAuth
 
 oauth = OAuth()
