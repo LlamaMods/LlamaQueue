@@ -9,9 +9,18 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 # DATABASE LOCATION
 # ==========================================================
 
+import os
+from pathlib import Path
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DATABASE_URL = f"sqlite:///{BASE_DIR / 'database' / 'llamaqueue.db'}"
+# Use Render Persistent Disk if available
+DB_PATH = os.getenv(
+    "DB_PATH",
+    str(BASE_DIR / "database" / "llamaqueue.db")
+)
+
+DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 
 # ==========================================================
