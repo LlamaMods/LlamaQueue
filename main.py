@@ -221,7 +221,11 @@ async def nightbot(
     db = SessionLocal()
 
     try:
-        creator = get_creator_from_nightbot(db, channel)
+        creator = get_creator_from_nightbot(
+            db, 
+            channel,
+            creator_name,
+        )
 
         if creator is None:
             return Response(
