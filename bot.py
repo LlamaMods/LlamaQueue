@@ -641,7 +641,7 @@ class LlamaBot:
 
         try:
 
-            settings = s["user"].settings
+            settings = s["queue"].user.settings
 
             label = settings.player_id_label or "Player ID"
 
