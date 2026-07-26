@@ -247,16 +247,6 @@ async def nightbot(
             message=message,
         )
 
-        announcements = bot.get_pending_announcements()
-
-        if announcements:
-            response = announcements[0]
-
-        return Response(
-            content=response.message,
-            media_type="text/plain",
-        )
-
     finally:
         db.close()
     
@@ -422,8 +412,8 @@ def complete(request: Request):
         names = ", ".join(player["player"] for player in current)
 
         nightbot.send_message(
-            "🎮 Lobby is Launching!\n"
-            f"Players: {names}.\n"
+            "🎮 Lobby is Launching! • "
+            f"Players: {names}. • "
             "Please send your invites!"
         )
 
