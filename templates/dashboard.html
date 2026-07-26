@@ -4,7 +4,13 @@
 
 <div class="container">
 
-    <h1>🎮 {{ settings.creator_name }}</h1>
+    <div class="page-header">
+        <h1>🎮 {{ settings.creator_name }}</h1>
+
+        <span class="status-badge beta">
+            LlamaQueue v1.0 Beta
+        </span>
+    </div>
 
 
 
@@ -202,11 +208,13 @@
 
                     </form>
 
+                    {% if settings.debug_mode %}
                     <form action="/test_queue" method="post">
                         <button>
                           🧪 Populate Test Queue
                         </button>
-                    </form>      
+                    </form>
+                    {% endif %}      
 
                 </div>
 
