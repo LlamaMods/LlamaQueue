@@ -12,6 +12,6 @@ oauth.register(
     authorize_url="https://api.nightbot.tv/oauth2/authorize",
     access_token_url="https://api.nightbot.tv/oauth2/token",
     client_kwargs={
-        "scope": "channel commands commands_default",
+        "scope": "channel channel_send commands commands_default",
     },
 )

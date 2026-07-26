@@ -262,54 +262,36 @@ class LlamaBot:
 
             if len(lobby_players) == lobby_size:
 
-                names = "\n".join(
+                names = ", ".join(
                     player["player"] for player in lobby_players
                 )
 
-                announcement_queue.add(
-                    BotResponse(
-                        success=True,
-                        announce=True,
-                        event="lobby_ready",
-                        lobby=lobby,
-                        message=(
-                            f"🎮 Lobby {lobby} is Ready!\n\n"
-                            f"{names}\n\n"
-                            "Please send your invites!"
-                        ),
-                    )
+                return BotResponse(
+                    success=True,
+                    announce=True,
+                    event="lobby_ready",
+                    lobby=lobby,
+                    message=(
+                        f"🎉 Lobby {lobby} is Full!\n"
+                        f"Players: {names}."
+                    ),
                 )
 
             activity.add(
                 f"{username} joined the queue."
             )
 
-            response = BotResponse(
-
+            return BotResponse(
                 success=True,
-
                 username=username,
-
                 player=player,
-
                 lobby=lobby,
-
                 slot=slot,
-
                 position=position,
-
                 queue_size=len(players),
-
                 announce=False,
-
                 event="join",
-
-                message=(
-                    f"{username} joined "
-                    f"Lobby {lobby} "
-                    f"({slot}/{lobby_size})."
-                ),
-
+                message="",
             )
 
             return response

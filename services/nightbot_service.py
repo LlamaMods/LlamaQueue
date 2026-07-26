@@ -45,6 +45,19 @@ class NightbotService:
 
         return response.json()
 
+    def send_message(self, message: str):
+        """
+        Send a chat message through Nightbot.
+        Requires the 'channel_send' OAuth scope.
+        """
+
+        return self.post(
+            "channel/send",
+            {
+                "message": message,
+            },
+        )    
+
     def put(self, endpoint: str, payload: dict):
         response = requests.put(
             f"{self.BASE_URL}/{endpoint.lstrip('/')}",

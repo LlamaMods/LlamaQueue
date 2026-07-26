@@ -3,7 +3,6 @@ import json
 
 from dotenv import load_dotenv
 
-# Load environment variables BEFORE importing anything that uses them.
 load_dotenv()
 
 from fastapi import FastAPI, Form, Request
@@ -417,22 +416,15 @@ def complete(request: Request):
     if current:
         history.add_lobby(current)
 
-        names = "\n".join(player["player"] for player in current)
+        current_user = get_current_user(request)
+        nightbot = NightbotService(current_user)
 
-        import announcement_queue
-        from bot import BotResponse
+        names = ", ".join(player["player"] for player in current)
 
-        announcement_queue.add(
-            BotResponse(
-                success=True,
-                announce=True,
-                event="lobby_launch",
-                message=(
-                    "🎮 Lobby is Launching!\n\n"
-                    f"{names}\n\n"
-                    "Please send your invites!"
-                ),
-            )
+        nightbot.send_message(
+            "🎮 Lobby is Launching!\n"
+            f"Players: {names}.\n"
+            "Please send your invites!"
         )
 
     queue.complete_lobby()
