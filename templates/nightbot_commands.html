@@ -238,6 +238,36 @@
             rows="3">{{ item.mapping.message }}</textarea>
 
     </div>
+    
+    {% if item.mapping.action == "player_id" %}
+
+    <div class="command-grid">
+
+        <div class="field">
+
+            <label>Player ID Label</label>
+
+            <input
+                type="text"
+                name="player_id_label"
+                value="{{ creator_settings.player_id_label }}">
+
+        </div>
+
+        <div class="field">
+
+            <label>Player ID Value</label>
+
+            <input
+                type="text"
+                name="player_id_value"
+                value="{{ creator_settings.player_id_value }}">
+
+        </div>
+
+    </div>
+
+    {% endif %}
 
     {% if not item.mapping.builtin %}
 

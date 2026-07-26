@@ -238,6 +238,8 @@ async def nightbot(
 
         if command == "reg":
             message = f"!reg {player}"
+        elif command =="playerid":
+            message = "!fc"    
         else:
             message = f"!{command}"
 
@@ -684,6 +686,7 @@ def nightbot_commands(request: Request):
                 nightbot_commands
             ),
             "nightbot_commands": nightbot_commands,
+            "creator_settings": settings.get_all(),
         },
     )
 
@@ -752,6 +755,16 @@ async def save_nightbot_commands(
         mapping.enabled = (
             form.get(f"enabled_{mapping_id}") == "1"
         )
+    settings.update(
+        player_id_label=form.get(
+            "player_id_label",
+            settings.get("player_id_label"),
+        ),
+        player_id_value=form.get(
+            "player_id_value",
+            settings.get("player_id_value"),
+        ),
+    )
 
     db.commit()
     db.close()

@@ -238,6 +238,16 @@ class CreatorSettings(Base):
         default="Player",
     )
 
+    player_id_label: Mapped[str] = mapped_column(
+        String(100),
+        default="Friend Code",
+    )
+
+    player_id_value: Mapped[str] = mapped_column(
+        String(255),
+        default="",
+    )
+    
     party_size: Mapped[int] = mapped_column(
         Integer,
         default=5,

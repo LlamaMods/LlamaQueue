@@ -44,4 +44,13 @@ DEFAULT_COMMANDS = [
         "permission": "everyone",
         "cooldown": 30,
     },
+    {
+        "action": "player_id",
+        "description": "Displays the creator's player ID.",
+        "builtin": True,
+        "command": "!fc",
+        "message": "$(urlfetch {base_url}/nightbot?command=playerid&channel=$(channel)&user=$(user))",
+        "permission": "everyone",
+        "cooldown": 30,
+    },
 ]

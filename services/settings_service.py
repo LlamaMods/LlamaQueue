@@ -9,6 +9,8 @@ class SettingsService:
         "creator_name": "Creator Queue",
         "queue_name": "Community Queue",
         "player_label": "Player",
+        "player_id_label": "Friend Code",
+        "player_id_value": "",
         "party_size": 5,
         "min_party_size": 1,
         "max_party_size": 10,
@@ -67,6 +69,8 @@ class SettingsService:
 
         return {
             "creator_name": s.creator_name,
+            "player_id_label": s.player_id_label,
+            "player_id_value": s.player_id_value,
             "queue_name": s.queue_name,
             "player_label": s.player_label,
             "party_size": s.party_size,

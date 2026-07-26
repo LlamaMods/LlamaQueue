@@ -73,6 +73,8 @@ class LlamaBot:
 
             "!close": self.close_queue,
 
+            "!fc": self.player_id,
+
         }
 
     # ------------------------------------------------------
@@ -627,3 +629,38 @@ class LlamaBot:
 
         return sorted(self.command_map.keys())
 
+    # ======================================================
+    # !fc
+    # ======================================================
+
+    def player_id(self, username: str, message: str) -> BotResponse:
+
+        s = self.services()
+
+        db = s["db"]
+
+        try:
+
+            settings = s["user"].settings
+
+            label = settings.player_id_label or "Player ID"
+
+            value = settings.player_id_value
+
+            if not value:
+
+                return BotResponse(
+                    success=False,
+                    message="The creator hasn't configured a Player ID yet.",
+                    username=username,
+                )
+
+            return BotResponse(
+                success=True,
+                message=f"{label}: {value}",
+                username=username,
+            )
+
+        finally:
+
+            db.close()
