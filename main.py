@@ -248,6 +248,11 @@ async def nightbot(
             message=message,
         )
 
+        announcements = bot.get_pending_announcements()
+
+        if announcements:
+            response = announcements[0]
+
         return Response(
             content=response.message,
             media_type="text/plain",
@@ -411,6 +416,24 @@ def complete(request: Request):
 
     if current:
         history.add_lobby(current)
+
+        names = "\n".join(player["player"] for player in current)
+
+        import announcement_queue
+        from bot import BotResponse
+
+        announcement_queue.add(
+            BotResponse(
+                success=True,
+                announce=True,
+                event="lobby_launch",
+                message=(
+                    "🎮 Lobby is Launching!\n\n"
+                    f"{names}\n\n"
+                    "Please send your invites!"
+                ),
+            )
+        )
 
     queue.complete_lobby()
 

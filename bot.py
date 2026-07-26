@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable, Dict, Optional, Any
+import announcement_queue
 
 from database.session import SessionLocal
 from database.models import User
@@ -54,8 +55,6 @@ class LlamaBot:
         self.creator_id = creator_id
 
         self.cooldowns: Dict[str, float] = {}
-
-        self.pending_announcements: list[BotResponse] = []
 
         self.command_map: Dict[str, Callable] = {
 
@@ -257,6 +256,30 @@ class LlamaBot:
 
             slot = ((position - 1) % lobby_size) + 1
 
+            lobby_players = players[
+                ((lobby - 1) * lobby_size):(lobby * lobby_size)
+            ]
+
+            if len(lobby_players) == lobby_size:
+
+                names = "\n".join(
+                    player["player"] for player in lobby_players
+                )
+
+                announcement_queue.add(
+                    BotResponse(
+                        success=True,
+                        announce=True,
+                        event="lobby_ready",
+                        lobby=lobby,
+                        message=(
+                            f"🎮 Lobby {lobby} is Ready!\n\n"
+                            f"{names}\n\n"
+                            "Please send your invites!"
+                        ),
+                    )
+                )
+
             activity.add(
                 f"{username} joined the queue."
             )
@@ -289,13 +312,12 @@ class LlamaBot:
 
             )
 
-            self.pending_announcements.append(response)
-
             return response
 
         finally:
 
             db.close()
+
     # ======================================================
     # !leave
     # ======================================================
@@ -604,16 +626,35 @@ class LlamaBot:
 
     def queue_announcement(self, response: BotResponse):
 
-        self.pending_announcements.append(response)
+        announcement_queue.add(response)
 
+
+    def queue_lobby_announcement(self, players, launching=False):
+
+        if not players:
+            return
+
+        status = "Launching" if launching else "Ready"
+
+        names = "\n".join(player.player for player in players)
+
+        announcement_queue.add(
+            BotResponse(
+                success=True,
+                announce=True,
+                event="lobby_ready",
+                lobby=players[0].lobby,
+                message=(
+                    f"🎮 Lobby {players[0].lobby} is {status}!\n\n"
+                    f"{names}\n\n"
+                    "Please send your invites!"
+                ),
+            )
+        )
 
     def get_pending_announcements(self):
 
-        announcements = self.pending_announcements.copy()
-
-        self.pending_announcements.clear()
-
-        return announcements
+        return announcement_queue.get_all()
 
 
     # ======================================================

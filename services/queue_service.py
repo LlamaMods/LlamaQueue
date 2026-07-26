@@ -335,20 +335,31 @@ class QueueService:
     # ==========================================================
 
     def current_lobby(self):
-        return self.get_players()[:self.lobby_size]
+
+        players = self.get_players()
+
+        return players[:self.lobby_size]
+
 
     def waiting_players(self):
-        return self.get_players()[self.lobby_size:]
+
+        players = self.get_players()
+
+        return players[self.lobby_size:]
 
     def complete_lobby(self):
 
         players = self._query().limit(self.lobby_size).all()
+
+        launched_players = list(players)
 
         for player in players:
             self.db.delete(player)
 
         self.db.commit()
         self._renumber()
+
+        return launched_players
 
     # ==========================================================
     # Utilities
