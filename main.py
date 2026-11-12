@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime
 
 from dotenv import load_dotenv
 
@@ -18,15 +19,19 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from auth.dependencies import get_current_user
 from auth.google import oauth
-from database.models import User
+from database.models import User, UserAppearance, QueueEntry, CreatorSettings
 from database.models import CommandMapping
 from database.session import Base, engine, SessionLocal
 from database.session import SessionLocal
 from services.user_resolver import get_creator_from_nightbot
+from services.priority_service import PriorityService
+from chat.models import QueueEntryPriority, QueuePrioritySettings, AppearancePreset
+from urllib.parse import parse_qs
 
 from services.history_service import HistoryService
 from services.moderator_service import ModeratorService
 from routers.auth import router as auth_router
+from routers.chat import router as chat_router
 
 from services.command_service import CommandService
 from services.nightbot_service import NightbotService
@@ -45,6 +50,7 @@ app.add_middleware(
 
 
 app.include_router(auth_router)
+app.include_router(chat_router)
 
 Base.metadata.create_all(bind=engine)
 
@@ -77,13 +83,37 @@ def get_services(request: Request):
 
     return queue, registrations, settings, history, moderators, db
 
+def template_context(request: Request):
+    current_user = get_current_user(request)
+    appearance = {
+        "background_color": "#101418",
+        "surface_color": "#1B2128",
+        "raised_surface_color": "#252D36",
+        "accent_color": "#33C759",
+        "accent_text_color": "#7BE495",
+        "text_color": "#F4F7F8",
+        "muted_text_color": "#A9B4BE",
+        "border_color": "#2E3742",
+        "font_family": "Segoe UI",
+        "font_size": 16,
+        "corner_radius": 14,
+        "density": "comfortable",
+    }
+    if current_user is not None:
+        theme_db = SessionLocal()
+        try:
+            saved = theme_db.query(UserAppearance).filter_by(user_id=current_user.id).first()
+            if saved is not None:
+                for key in appearance:
+                    appearance[key] = getattr(saved, key)
+        finally:
+            theme_db.close()
+    return {"current_user": current_user, "appearance": appearance}
+
+
 templates = Jinja2Templates(
     directory="templates",
-    context_processors=[
-        lambda request: {
-            "current_user": get_current_user(request),
-        }
-    ],
+    context_processors=[template_context],
 )
 
 # -------------------------
@@ -184,6 +214,21 @@ def home(request: Request):
 from fastapi import Header, Query
 
 
+def parse_nightbot_header(raw: str | None) -> dict:
+    if not raw:
+        return {}
+    try:
+        if raw.lstrip().startswith("{"):
+            value = json.loads(raw)
+            return value if isinstance(value, dict) else {}
+    except (TypeError, ValueError):
+        pass
+    try:
+        return {key: values[-1] for key, values in parse_qs(raw, keep_blank_values=True).items()}
+    except Exception:
+        return {}
+
+
 @app.get("/nightbot")
 async def nightbot(
     request: Request,
@@ -195,20 +240,12 @@ async def nightbot(
     creator_name = request.query_params.get("channel")
     chatter_name = request.query_params.get("user")
 
-    channel = {}
-
-    if nightbot_channel:
-        try:
-            channel = json.loads(nightbot_channel)
-            creator_name = channel.get("name", creator_name)
-        except Exception:
-            channel = {}
-
-    if nightbot_user:
-        try:
-            chatter_name = json.loads(nightbot_user).get("name", chatter_name)
-        except Exception:
-            pass
+    channel = parse_nightbot_header(nightbot_channel)
+    chatter = parse_nightbot_header(nightbot_user)
+    creator_name = channel.get("name") or channel.get("displayName") or creator_name
+    chatter_name = chatter.get("name") or chatter.get("displayName") or chatter_name
+    chatter_provider = (chatter.get("provider") or "").lower()
+    chatter_provider_id = chatter.get("providerId") or chatter.get("provider_id")
 
     if not creator_name or not chatter_name:
         return Response(
@@ -245,10 +282,18 @@ async def nightbot(
         response = bot.process(
             username=chatter_name,
             message=message,
+            chatter_provider=chatter_provider,
+            chatter_provider_id=chatter_provider_id,
         )
 
     finally:
         db.close()
+
+    return Response(
+        content=(response.message or ("Joined the queue." if response.success and command == "join" else "OK" if response.success else "Command failed.")),
+        media_type="text/plain",
+        status_code=200,
+    )
     
 @app.post("/register")
 def register(
@@ -568,10 +613,8 @@ def queue_page(request: Request):
 
     return response
 
-# -------------------------
-# History
-# -------------------------
 
+# -------------------------
 @app.get("/history")
 def history_page(request: Request):
 
@@ -933,6 +976,7 @@ def settings_page(request: Request):
             "title": "Settings",
             "current_user": current_user,
             "settings": settings.get_all(),
+            "priority_settings": PriorityService.get_settings(db, current_user.id),
         }
     )
 
@@ -986,6 +1030,223 @@ def save_settings(
         "/settings",
         status_code=303
     )
+
+
+
+@app.post("/settings/priority")
+def save_priority_settings(
+    request: Request,
+    priority_enabled: str = Form("0"),
+    priority_t3: int = Form(1),
+    priority_t2: int = Form(2),
+    priority_youtube_member: int = Form(3),
+    priority_t1: int = Form(4),
+):
+    current_user = get_current_user(request)
+    if current_user is None:
+        return RedirectResponse("/login", status_code=302)
+    ranks = {
+        "twitch_t3": priority_t3,
+        "twitch_t2": priority_t2,
+        "youtube_member": priority_youtube_member,
+        "twitch_t1": priority_t1,
+    }
+    db = SessionLocal()
+    try:
+        try:
+            saved = PriorityService.save_settings(
+                db, current_user.id, priority_enabled == "1", ranks
+            )
+        except (ValueError, TypeError):
+            return RedirectResponse("/settings?priority_error=rank", status_code=303)
+        user = db.query(User).filter(User.id == current_user.id).first()
+        if user is not None:
+            QueueService(db, user).reorder_by_priority(saved["ranks"], saved["enabled"])
+    finally:
+        db.close()
+    return RedirectResponse("/settings?saved=priority", status_code=303)
+
+
+@app.post("/settings/appearance")
+def save_appearance(
+    request: Request,
+    background_color: str = Form("#101418"),
+    surface_color: str = Form("#1B2128"),
+    raised_surface_color: str = Form("#252D36"),
+    accent_color: str = Form("#33C759"),
+    accent_text_color: str = Form("#7BE495"),
+    text_color: str = Form("#F4F7F8"),
+    muted_text_color: str = Form("#A9B4BE"),
+    border_color: str = Form("#2E3742"),
+    font_family: str = Form("Segoe UI"),
+    font_size: int = Form(16),
+    corner_radius: int = Form(14),
+    density: str = Form("comfortable"),
+):
+    import re
+    current_user = get_current_user(request)
+    if current_user is None:
+        return RedirectResponse("/login", status_code=302)
+
+    colors = {
+        "background_color": background_color,
+        "surface_color": surface_color,
+        "raised_surface_color": raised_surface_color,
+        "accent_color": accent_color,
+        "accent_text_color": accent_text_color,
+        "text_color": text_color,
+        "muted_text_color": muted_text_color,
+        "border_color": border_color,
+    }
+    if any(not re.fullmatch(r"#[0-9a-fA-F]{6}", value or "") for value in colors.values()):
+        return RedirectResponse("/settings?appearance_error=color", status_code=303)
+
+    allowed_fonts = {"Segoe UI", "Arial", "Verdana", "Tahoma", "Georgia", "Trebuchet MS", "Courier New"}
+    if font_family not in allowed_fonts or density not in {"compact", "comfortable", "spacious"}:
+        return RedirectResponse("/settings?appearance_error=choice", status_code=303)
+
+    db = SessionLocal()
+    try:
+        appearance = db.query(UserAppearance).filter_by(user_id=current_user.id).first()
+        if appearance is None:
+            appearance = UserAppearance(user_id=current_user.id)
+            db.add(appearance)
+        for key, value in colors.items():
+            setattr(appearance, key, value.upper())
+        appearance.font_family = font_family
+        appearance.font_size = max(13, min(21, int(font_size)))
+        appearance.corner_radius = max(6, min(28, int(corner_radius)))
+        appearance.density = density
+        db.commit()
+    finally:
+        db.close()
+    return RedirectResponse("/settings?saved=appearance", status_code=303)
+
+
+
+# -------------------------
+# Website appearance presets (Save 1 / Save 2 / Save 3)
+# -------------------------
+
+APPEARANCE_PRESET_FIELDS = (
+    "background_color", "surface_color", "raised_surface_color", "accent_color",
+    "accent_text_color", "text_color", "muted_text_color", "border_color",
+    "font_family", "font_size", "corner_radius", "density",
+)
+APPEARANCE_DEFAULTS = {
+    "background_color": "#101418", "surface_color": "#1B2128",
+    "raised_surface_color": "#252D36", "accent_color": "#33C759",
+    "accent_text_color": "#7BE495", "text_color": "#F4F7F8",
+    "muted_text_color": "#A9B4BE", "border_color": "#2E3742",
+    "font_family": "Segoe UI", "font_size": 16, "corner_radius": 14,
+    "density": "comfortable",
+}
+
+
+def _appearance_values_from_form(payload):
+    import re
+    values = {key: payload.get(key, APPEARANCE_DEFAULTS[key]) for key in APPEARANCE_PRESET_FIELDS}
+    color_keys = APPEARANCE_PRESET_FIELDS[:8]
+    if any(not re.fullmatch(r"#[0-9a-fA-F]{6}", str(values[key]) or "") for key in color_keys):
+        raise ValueError("One or more colors are invalid.")
+    if values["font_family"] not in {"Segoe UI", "Arial", "Verdana", "Tahoma", "Georgia", "Trebuchet MS", "Courier New"}:
+        raise ValueError("Font family is invalid.")
+    if values["density"] not in {"compact", "comfortable", "spacious"}:
+        raise ValueError("Interface spacing is invalid.")
+    values["font_size"] = max(13, min(21, int(values["font_size"])))
+    values["corner_radius"] = max(6, min(28, int(values["corner_radius"])))
+    for key in color_keys:
+        values[key] = str(values[key]).upper()
+    return values
+
+
+@app.get("/api/appearance-presets")
+def list_appearance_presets(request: Request):
+    current_user = get_current_user(request)
+    if current_user is None:
+        return JSONResponse({"error": "Authentication required"}, status_code=401)
+    db = SessionLocal()
+    try:
+        rows = db.query(AppearancePreset).filter_by(user_id=current_user.id).all()
+        saved = {row.slot: row for row in rows}
+        return JSONResponse({"slots": [
+            {"slot": slot, "saved": slot in saved,
+             "name": saved[slot].name if slot in saved else "",
+             "updated_at": saved[slot].updated_at.isoformat() if slot in saved and saved[slot].updated_at else None}
+            for slot in (1, 2, 3)
+        ]})
+    finally:
+        db.close()
+
+
+@app.post("/api/appearance-presets/{slot}/save")
+async def save_appearance_preset(slot: int, request: Request):
+    current_user = get_current_user(request)
+    if current_user is None:
+        return JSONResponse({"error": "Authentication required"}, status_code=401)
+    if slot not in (1, 2, 3):
+        return JSONResponse({"error": "Choose preset 1, 2, or 3."}, status_code=400)
+    try:
+        payload = await request.json()
+        values = _appearance_values_from_form(payload)
+    except Exception as exc:
+        return JSONResponse({"error": str(exc) or "Invalid appearance values."}, status_code=400)
+    db = SessionLocal()
+    try:
+        row = db.query(AppearancePreset).filter_by(user_id=current_user.id, slot=slot).first()
+        if row is None:
+            row = AppearancePreset(user_id=current_user.id, slot=slot)
+            db.add(row)
+        row.name = str(payload.get("name") or f"Appearance {slot}")[:80]
+        row.settings_json = json.dumps(values, separators=(",", ":"))
+        db.commit()
+        return JSONResponse({"ok": True, "slot": slot, "name": row.name})
+    finally:
+        db.close()
+
+
+@app.post("/api/appearance-presets/{slot}/load")
+def load_appearance_preset(slot: int, request: Request):
+    current_user = get_current_user(request)
+    if current_user is None:
+        return JSONResponse({"error": "Authentication required"}, status_code=401)
+    if slot not in (1, 2, 3):
+        return JSONResponse({"error": "Choose preset 1, 2, or 3."}, status_code=400)
+    db = SessionLocal()
+    try:
+        row = db.query(AppearancePreset).filter_by(user_id=current_user.id, slot=slot).first()
+        if row is None:
+            return JSONResponse({"error": f"Appearance {slot} is empty."}, status_code=404)
+        try:
+            values = _appearance_values_from_form(json.loads(row.settings_json))
+        except Exception:
+            return JSONResponse({"error": "This saved appearance is invalid."}, status_code=400)
+        appearance = db.query(UserAppearance).filter_by(user_id=current_user.id).first()
+        if appearance is None:
+            appearance = UserAppearance(user_id=current_user.id)
+            db.add(appearance)
+        for key, value in values.items():
+            setattr(appearance, key, value)
+        db.commit()
+        return JSONResponse({"ok": True, "slot": slot, "name": row.name})
+    finally:
+        db.close()
+
+
+@app.post("/settings/appearance/reset")
+def reset_appearance(request: Request):
+    current_user = get_current_user(request)
+    if current_user is None:
+        return RedirectResponse("/login", status_code=302)
+    db = SessionLocal()
+    try:
+        appearance = db.query(UserAppearance).filter_by(user_id=current_user.id).first()
+        if appearance is not None:
+            db.delete(appearance)
+            db.commit()
+    finally:
+        db.close()
+    return RedirectResponse("/settings?saved=reset", status_code=303)
 
 @app.post("/test_queue")
 def populate_test_queue(request: Request):

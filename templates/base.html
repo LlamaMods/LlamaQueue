@@ -14,12 +14,29 @@
     <link
         rel="stylesheet"
         href="/static/style.css">
+    <link
+        rel="stylesheet"
+        href="/static/revamp.css">
 
     {% block extra_css %}{% endblock %}    
 
 </head>
 
-<body>
+<body style="
+    --bg: {{ appearance.background_color }};
+    --panel: {{ appearance.surface_color }};
+    --panel-light: {{ appearance.raised_surface_color }};
+    --green: {{ appearance.accent_color }};
+    --green-light: {{ appearance.accent_text_color }};
+    --text: {{ appearance.text_color }};
+    --muted: {{ appearance.muted_text_color }};
+    --border: {{ appearance.border_color }};
+    --radius: {{ appearance.corner_radius }}px;
+    --font-family: '{{ appearance.font_family }}';
+    --font-size: {{ appearance.font_size }}px;
+    --density: {{ appearance.density }};
+    --space-factor: {% if appearance.density == "compact" %}0.82{% elif appearance.density == "spacious" %}1.18{% else %}1{% endif %};
+">
 
 <!-- Mobile Header -->
 
@@ -97,6 +114,20 @@
                 <span class="nav-text">
 
                     Queue
+
+                </span>
+
+            </a>
+
+            <a
+                href="/chat"
+                class="{% if request.url.path.startswith('/chat') %}active{% endif %}">
+
+                <span class="nav-icon">💬</span>
+
+                <span class="nav-text">
+
+                    Unified Chat
 
                 </span>
 

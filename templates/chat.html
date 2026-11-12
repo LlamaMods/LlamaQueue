@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/chat.css">
+{% endblock %}
+
+{% block content %}
+<div class="chat-page" id="llama-chat-page">
+    <div class="chat-heading">
+        <div>
+            <p class="chat-eyebrow">LLAMAQUEUE · LIVE TOOLS</p>
+            <h1>Omni Chat</h1>
+            <p class="chat-subtitle">Watch your Twitch and YouTube conversations in one place.</p>
+        </div>
+        <span class="chat-live-pill" id="chat-live-state">Starting chat…</span>
+    </div>
+
+    {% if local_test_mode %}
+    <div class="chat-notice">Local preview mode is active. You can test the dashboard, sample messages, appearance settings, and OBS overlay. Connect Twitch and YouTube on your existing Render site for live chat; no callback changes are needed.</div>
+    {% endif %}
+    {% if request.query_params.get('error') %}
+    <div class="chat-notice chat-notice-error">
+        {% if request.query_params.get('error') == 'google_config' %}Google OAuth credentials are missing from the environment.{% elif request.query_params.get('error') == 'twitch_config' %}Twitch OAuth credentials are missing from the environment.{% elif request.query_params.get('error') == 'chat_encryption' %}Set a stable SESSION_SECRET of at least 32 characters before saving chat account credentials.{% else %}The account connection could not be completed. Please try again.{% endif %}
+    </div>
+    {% endif %}
+    {% if request.query_params.get('connected') %}
+    <div class="chat-notice">{{ request.query_params.get('connected')|title }} chat account connected. The listener will start when the chat page is open.</div>
+    {% endif %}
+
+    <section class="chat-connections">
+        <article class="chat-platform-card">
+            <div class="chat-platform-title"><span class="chat-platform-icon twitch-icon">T</span><div><h2>Twitch</h2><p>{% if connections.get('twitch') %}{{ connections['twitch'].platform_display_name or connections['twitch'].platform_login }}{% else %}Not connected{% endif %}</p></div></div>
+            <div class="chat-platform-footer"><span class="chat-status-dot" id="twitch-status-dot"></span><span id="twitch-status">{% if connections.get('twitch') %}Starting…{% else %}Connect an account{% endif %}</span>
+            {% if connections.get('twitch') %}<a class="chat-link-button" href="/chat/connect/twitch">Update permissions</a><form method="post" action="/chat/disconnect/twitch"><button class="chat-link-button" type="submit">Disconnect</button></form>{% elif local_test_mode %}<span class="chat-link-button">Connect on Render for live chat</span>{% else %}<a class="chat-connect-button twitch-button" href="/chat/connect/twitch">Connect Twitch</a>{% endif %}</div>
+        </article>
+        <article class="chat-platform-card">
+            <div class="chat-platform-title"><span class="chat-platform-icon youtube-icon">▶</span><div><h2>YouTube</h2><p>{% if connections.get('youtube') %}{{ connections['youtube'].platform_display_name or connections['youtube'].platform_login }}{% else %}Not connected{% endif %}</p></div></div>
+            <div class="chat-platform-footer"><span class="chat-status-dot" id="youtube-status-dot"></span><span id="youtube-status">{% if connections.get('youtube') %}Starting…{% else %}Connect an account{% endif %}</span>
+            {% if connections.get('youtube') %}<a class="chat-link-button" href="/chat/connect/google">Update permissions</a><form method="post" action="/chat/disconnect/youtube"><button class="chat-link-button" type="submit">Disconnect</button></form>{% elif local_test_mode %}<span class="chat-link-button">Connect on Render for live chat</span>{% else %}<a class="chat-connect-button youtube-button" href="/chat/connect/google">Connect YouTube</a>{% endif %}</div>
+        </article>
+    </section>
+
+    <details class="chat-customizer" id="chat-customizer" open>
+        <summary><span><strong>Chat appearance</strong><small>Customize the dashboard feed and OBS overlay</small></span><span class="customizer-summary-action">Customize ↓</span></summary>
+        <div class="chat-customizer-grid">
+            <label>Theme<select data-setting="theme"><option value="transparent">Transparent</option><option value="dark">Dark</option><option value="light">Light</option></select></label>
+            <label>Font<select data-setting="fontFamily"><option value="Arial, sans-serif">Arial</option><option value="Verdana, sans-serif">Verdana</option><option value="Tahoma, sans-serif">Tahoma</option><option value="Georgia, serif">Georgia</option><option value="monospace">Monospace</option></select></label>
+            <label>Font size <output data-output="fontSize"></output><input type="range" min="11" max="28" data-setting="fontSize"></label>
+            <label>Background opacity <output data-output="backgroundOpacity"></output><input type="range" min="0" max="100" data-setting="backgroundOpacity"></label>
+            <label>Max messages <output data-output="maxMessages"></output><input type="range" min="5" max="100" data-setting="maxMessages"></label>
+            <label>Message spacing <output data-output="messageSpacing"></output><input type="range" min="0" max="20" data-setting="messageSpacing"></label>
+            <label>Corner radius <output data-output="messageRadius"></output><input type="range" min="0" max="24" data-setting="messageRadius"></label>
+            <label>Background color <input type="color" data-setting="backgroundColor"></label>
+            <label>Message text color <input type="color" data-setting="textColor"></label>
+            <label>Username color <input type="color" data-setting="usernameColor"></label>
+            <label>Twitch accent <input type="color" data-setting="twitchColor"></label>
+            <label>YouTube accent <input type="color" data-setting="youtubeColor"></label>
+            <label class="chat-toggle"><input type="checkbox" data-setting="showPlatform"> Show platform icons</label>
+            <label class="chat-toggle"><input type="checkbox" data-setting="showTimestamp"> Show timestamps</label>
+            <label class="chat-toggle"><input type="checkbox" data-setting="showUsername"> Show usernames</label>
+            <label class="chat-toggle"><input type="checkbox" data-setting="showBadges"> Show badges (where available)</label>
+        </div>
+        <div class="chat-customizer-actions"><button type="button" id="save-chat-appearance">Save appearance</button><button type="button" id="reset-chat-appearance" class="chat-link-button">Reset defaults</button><span id="appearance-save-status" role="status"></span></div>
+    </details>
+
+    <section class="chat-workspace">
+        <div class="chat-toolbar">
+            <div><h2>Live messages</h2><span id="chat-message-count">Waiting for messages</span></div>
+            <div class="chat-toolbar-actions"><button type="button" id="preview-chat" class="chat-link-button">Preview sample chat</button></div>
+        </div>
+        <nav class="chat-tabbar" id="chat-tabbar" aria-label="Chat views">
+            <button class="chat-tab active" type="button" data-view="all"><span class="tab-dot integrated-dot"></span>Omni</button>
+            <button class="chat-tab twitch-tab" type="button" data-view="twitch"><span class="tab-dot"></span>Twitch</button>
+            <button class="chat-tab youtube-tab" type="button" data-view="youtube"><span class="tab-dot"></span>YouTube</button>
+            <span class="chat-tab-divider"></span><span class="chat-pinned-label">Pinned chatters</span>
+            <div id="pinned-chatter-tabs" class="chat-pinned-tabs"><span class="chat-pinned-empty">Pin a chatter from any message</span></div>
+        </nav>
+        <div class="chat-message-list" id="chat-message-list" aria-live="polite">
+            <div class="chat-empty" id="chat-empty"><span>🦙</span><strong>Your chat will appear here</strong><p>Connect Twitch, YouTube, or both. Messages from connected live streams will appear together in Omni.</p></div>
+        </div>
+        <form class="chat-composer" id="chat-composer">
+            <label class="sr-only" for="chat-message-input">Send a chat message</label>
+            <input id="chat-message-input" type="text" maxlength="500" placeholder="Send a message to your community…" autocomplete="off">
+            <div class="chat-send-destinations" role="group" aria-label="Message destination">
+                <button type="button" class="chat-send-target active" data-target="all">Send all</button>
+                <button type="button" class="chat-send-target" data-target="twitch">Twitch</button>
+                <button type="button" class="chat-send-target" data-target="youtube">YouTube</button>
+            </div>
+            <button type="submit" class="chat-send-button" id="chat-send-button">Send</button>
+        </form>
+        <div class="chat-send-status" id="chat-send-status" role="status"></div>
+        <div class="chat-footnote">Moderation and sending depend on each platform's API permissions and your role in that channel. Reconnect after updating permissions.</div>
+    </section>
+
+    <section class="chat-overlay-panel">
+        <div><p class="chat-eyebrow">OBS BROWSER SOURCE</p><h2>Your chat overlay</h2><p>Paste this URL into an OBS Browser Source. Keep it private; anyone with the URL can view your combined chat.</p></div>
+        <div class="chat-overlay-url-row"><input id="chat-overlay-url" type="text" readonly value="{{ overlay_url }}" aria-label="OBS overlay URL"><button id="copy-overlay-url" type="button">Copy URL</button></div>
+        <div class="chat-overlay-hint">Recommended starting size: 420 × 800 · Transparent background</div>
+    </section>
+</div>
+<script>
+(() => {
+    const customizer = document.getElementById('chat-customizer');
+    const mobile = window.matchMedia('(max-width: 760px)');
+    const syncCustomizer = () => {
+        if (mobile.matches && customizer) customizer.removeAttribute('open');
+    };
+    syncCustomizer();
+    mobile.addEventListener?.('change', syncCustomizer);
+})();
+</script>
+<script type="application/json" id="chat-appearance-json">{{ chat_appearance|tojson }}</script>
+<script src="/static/js/chat.js" defer></script>
+{% endblock %}

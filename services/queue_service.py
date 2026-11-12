@@ -4,6 +4,7 @@ import time
 from sqlalchemy.orm import Session
 
 from database.models import QueueEntry, User
+from chat.models import QueueEntryPriority
 
 
 STATUS_WAITING = "waiting"
@@ -100,7 +101,7 @@ class QueueService:
     # Queue Management
     # ==========================================================
 
-    def join(self, youtube_name: str, player_name: str = "") -> bool:
+    def join(self, youtube_name: str, player_name: str = "", priority: dict | None = None) -> bool:
 
         if not self.is_open():
             return False
@@ -117,11 +118,48 @@ class QueueService:
             status=STATUS_WAITING,
             joined_at=datetime.utcnow(),
         )
-
         self.db.add(entry)
         self.db.commit()
+        self.db.refresh(entry)
+
+        if priority and priority.get("key") and priority.get("rank"):
+            self.db.add(QueueEntryPriority(
+                queue_entry_id=entry.id,
+                user_id=self.user.id,
+                priority_key=priority["key"],
+                priority_label=priority.get("label", priority["key"]),
+                priority_rank=int(priority["rank"]),
+                platform=priority.get("platform", ""),
+                platform_user_id=priority.get("platform_user_id", ""),
+            ))
+            self.db.commit()
+            self._insert_by_priority(entry)
 
         return True
+
+    def _insert_by_priority(self, new_entry):
+        entries = self._query().all()
+        ids = [entry.id for entry in entries]
+        metadata = {
+            row.queue_entry_id: row
+            for row in self.db.query(QueueEntryPriority).filter(
+                QueueEntryPriority.queue_entry_id.in_(ids)
+            ).all()
+        } if ids else {}
+        new_meta = metadata.get(new_entry.id)
+        new_rank = new_meta.priority_rank if new_meta else 99
+        ordered = [entry for entry in entries if entry.id != new_entry.id]
+        insert_at = len(ordered)
+        for index, existing in enumerate(ordered):
+            existing_meta = metadata.get(existing.id)
+            existing_rank = existing_meta.priority_rank if existing_meta else 99
+            if existing_rank > new_rank:
+                insert_at = index
+                break
+        ordered.insert(insert_at, new_entry)
+        for index, entry in enumerate(ordered):
+            entry.position = index
+        self.db.commit()
 
     def remove(self, youtube_name: str) -> bool:
 
@@ -130,6 +168,7 @@ class QueueService:
         if player is None:
             return False
 
+        self.db.query(QueueEntryPriority).filter_by(queue_entry_id=player.id).delete(synchronize_session=False)
         self.db.delete(player)
         self.db.commit()
 
@@ -139,6 +178,7 @@ class QueueService:
 
     def clear(self):
 
+        self.db.query(QueueEntryPriority).filter_by(user_id=self.user.id).delete(synchronize_session=False)
         self._query().delete(
             synchronize_session=False
         )
@@ -173,14 +213,27 @@ class QueueService:
 
         players = []
 
-        for player in self._query().all():
+        entries = self._query().all()
+        ids = [entry.id for entry in entries]
+        priority_rows = self.db.query(QueueEntryPriority).filter(
+            QueueEntryPriority.queue_entry_id.in_(ids)
+        ).all() if ids else []
+        priority_map = {row.queue_entry_id: row for row in priority_rows}
 
+        for player in entries:
+            priority = priority_map.get(player.id)
             players.append({
                 "youtube": player.youtube_name,
                 "player": player.player_name,
                 "position": player.position,
                 "ready": player.ready,
                 "status": player.status,
+                "priority_key": priority.priority_key if priority else None,
+                "priority_label": priority.priority_label if priority else None,
+                "priority_badge": {
+                    "twitch_t3": "T3", "twitch_t2": "T2",
+                    "youtube_member": "YT MEM", "twitch_t1": "T1 / PRIME"
+                }.get(priority.priority_key) if priority else None,
                 "joined": (
                     player.joined_at.timestamp()
                     if player.joined_at
@@ -300,6 +353,35 @@ class QueueService:
 
         return True
 
+    def reorder_by_priority(self, ranks: dict, enabled: bool = True):
+        entries = self._query().all()
+        if not enabled:
+            ids = [entry.id for entry in entries]
+            if ids:
+                self.db.query(QueueEntryPriority).filter(
+                    QueueEntryPriority.queue_entry_id.in_(ids)
+                ).delete(synchronize_session=False)
+            self.db.commit()
+            return
+
+        ids = [entry.id for entry in entries]
+        metadata = {
+            row.queue_entry_id: row
+            for row in self.db.query(QueueEntryPriority).filter(
+                QueueEntryPriority.queue_entry_id.in_(ids)
+            ).all()
+        } if ids else {}
+        for row in metadata.values():
+            row.priority_rank = int(ranks.get(row.priority_key, 99))
+        entries.sort(key=lambda entry: (
+            metadata[entry.id].priority_rank if entry.id in metadata else 99,
+            entry.joined_at or datetime.min,
+            entry.position,
+        ))
+        for index, entry in enumerate(entries):
+            entry.position = index
+        self.db.commit()
+
     # ==========================================================
     # Player State
     # ==========================================================
@@ -354,6 +436,7 @@ class QueueService:
         launched_players = list(players)
 
         for player in players:
+            self.db.query(QueueEntryPriority).filter_by(queue_entry_id=player.id).delete(synchronize_session=False)
             self.db.delete(player)
 
         self.db.commit()

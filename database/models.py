@@ -645,3 +645,32 @@ class CommandMapping(Base):
         default="",
         nullable=False,
     )
+
+# ==========================================================
+# WEBSITE APPEARANCE (per account; independent of queue data)
+# ==========================================================
+
+class UserAppearance(Base):
+    __tablename__ = "user_appearance"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        unique=True,
+        index=True,
+    )
+    background_color: Mapped[str] = mapped_column(String(7), default="#101418")
+    surface_color: Mapped[str] = mapped_column(String(7), default="#1B2128")
+    raised_surface_color: Mapped[str] = mapped_column(String(7), default="#252D36")
+    accent_color: Mapped[str] = mapped_column(String(7), default="#33C759")
+    accent_text_color: Mapped[str] = mapped_column(String(7), default="#7BE495")
+    text_color: Mapped[str] = mapped_column(String(7), default="#F4F7F8")
+    muted_text_color: Mapped[str] = mapped_column(String(7), default="#A9B4BE")
+    border_color: Mapped[str] = mapped_column(String(7), default="#2E3742")
+    font_family: Mapped[str] = mapped_column(String(40), default="Segoe UI")
+    font_size: Mapped[int] = mapped_column(Integer, default=16)
+    corner_radius: Mapped[int] = mapped_column(Integer, default=14)
+    density: Mapped[str] = mapped_column(String(12), default="comfortable")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )

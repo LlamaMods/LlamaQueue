@@ -1,150 +1,187 @@
 {% extends "base.html" %}
-
 {% block content %}
+<div class="page-shell settings-page">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">CONTROL ROOM</p>
+      <h1>Settings</h1>
+      <p class="page-subtitle">Configure your existing queue and customize the LlamaQueue interface.</p>
+    </div>
+  </div>
 
-<div class="container">
+  {% if request.query_params.get("saved") %}
+  <div class="notice success-notice">Your settings have been saved.</div>
+  {% elif request.query_params.get("appearance_error") %}
+  <div class="notice error-notice">One of those appearance values wasn't valid. Check your selections and try again.</div>
+  {% endif %}
 
-    <h1>⚙ Creator Settings</h1>
-
-    <form action="/settings/save" method="post">
-
-        <!-- Creator -->
-
-        <div class="card">
-
-            <h2>🎮 Creator</h2>
-
-            <div class="status-card">
-
-                <span>Creator Name</span>
-
-                <input
-                    type="text"
-                    name="creator_name"
-                    value="{{ settings.creator_name }}">
-
-            </div>
-
-            <div class="status-card">
-
-                <span>Queue Name</span>
-
-                <input
-                    type="text"
-                    name="queue_name"
-                    value="{{ settings.queue_name }}">
-
-            </div>
-
-            <div class="status-card">
-
-                <span>Player Label</span>
-
-                <input
-                    type="text"
-                    name="player_label"
-                    value="{{ settings.player_label }}">
-
-            </div>
-
-        </div>
-
-        <!-- Queue -->
-
-        <div class="card">
-
-            <h2>👥 Queue</h2>
-
-            <div class="status-card">
-
-                <span>Default Party Size</span>
-
-                <input
-                    type="number"
-                    name="party_size"
-                    value="{{ settings.party_size }}"
-                    min="{{ settings.min_party_size }}"
-                    max="{{ settings.max_party_size }}">
-
-            </div>
-
-            <div class="status-card">
-
-                <span>Minimum Party Size</span>
-
-                <input
-                    type="number"
-                    name="min_party_size"
-                    value="{{ settings.min_party_size }}">
-
-            </div>
-
-            <div class="status-card">
-
-                <span>Maximum Party Size</span>
-
-                <input
-                    type="number"
-                    name="max_party_size"
-                    value="{{ settings.max_party_size }}">
-
-            </div>
-
-            <div class="status-card">
-
-                <span>Estimated Match Length (minutes)</span>
-
-                <input
-                    type="number"
-                    name="estimated_match_length"
-                    value="{{ settings.estimated_match_length }}">
-
-            </div>
-
-        </div>
-
-        <!-- Appearance -->
-
-        <div class="card">
-
-            <h2>🎨 Appearance</h2>
-
-            <div class="status-card">
-
-                <span>Theme</span>
-
-                <select name="theme">
-
-                    <option
-                        value="dark"
-                        {% if settings.theme == "dark" %}selected{% endif %}>
-                        Dark
-                    </option>
-
-                    <option
-                        value="light"
-                        {% if settings.theme == "light" %}selected{% endif %}>
-                        Light
-                    </option>
-
-                </select>
-
-            </div>
-
-        </div>
-
-        <div class="buttons">
-
-            <button class="success">
-
-                💾 Save Settings
-
-            </button>
-
-        </div>
-
+  <section class="settings-section">
+    <div class="section-heading">
+      <div><p class="eyebrow">EXISTING QUEUE SETTINGS</p><h2>Creator & Queue</h2></div>
+      <span class="section-icon">🎮</span>
+    </div>
+    <form action="/settings/save" method="post" class="settings-form">
+      <div class="settings-grid">
+        <label class="field"><span>Creator name</span><input type="text" name="creator_name" value="{{ settings.creator_name }}" required></label>
+        <label class="field"><span>Queue name</span><input type="text" name="queue_name" value="{{ settings.queue_name }}" required></label>
+        <label class="field"><span>Player label</span><input type="text" name="player_label" value="{{ settings.player_label }}" required></label>
+        <label class="field"><span>Default theme</span>
+          <select name="theme">
+            <option value="dark" {% if settings.theme == "dark" %}selected{% endif %}>Dark</option>
+            <option value="light" {% if settings.theme == "light" %}selected{% endif %}>Light</option>
+          </select>
+        </label>
+      </div>
+      <div class="settings-grid settings-grid-four">
+        <label class="field"><span>Default party size</span><input type="number" name="party_size" value="{{ settings.party_size }}" min="{{ settings.min_party_size }}" max="{{ settings.max_party_size }}" required></label>
+        <label class="field"><span>Minimum party size</span><input type="number" name="min_party_size" value="{{ settings.min_party_size }}" required></label>
+        <label class="field"><span>Maximum party size</span><input type="number" name="max_party_size" value="{{ settings.max_party_size }}" required></label>
+        <label class="field"><span>Estimated match (minutes)</span><input type="number" name="estimated_match_length" value="{{ settings.estimated_match_length }}" required></label>
+      </div>
+      <div class="form-actions"><button class="primary-button" type="submit">Save queue settings</button></div>
     </form>
+  </section>
 
+  <section class="settings-section">
+    <div class="section-heading">
+      <div><p class="eyebrow">MAKE IT YOURS</p><h2>Website appearance</h2>
+      <p class="section-description">These colors and typography apply across the dashboard, queue, history, moderators, and Omni workspace.</p></div>
+      <span class="section-icon">🎨</span>
+    </div>
+
+    <div class="appearance-presets" id="appearance-presets">
+      <div class="appearance-presets-heading">
+        <div><h3>Saved appearance presets</h3><p class="form-help">Save three different website designs and switch between them whenever you want.</p></div>
+      </div>
+      <div class="appearance-preset-grid">
+        {% for slot in [1, 2, 3] %}
+        <article class="appearance-preset-card">
+          <strong>Save {{ slot }}</strong>
+          <span class="appearance-preset-status" id="appearance-preset-status-{{ slot }}">Checking save…</span>
+          <label class="field"><span>Preset name</span><input type="text" id="appearance-preset-name-{{ slot }}" maxlength="80" value="Appearance {{ slot }}" placeholder="Name this design"></label>
+          <div class="appearance-preset-actions">
+            <button type="button" class="secondary-button" data-appearance-save="{{ slot }}">Save current look</button>
+            <button type="button" class="primary-button" data-appearance-load="{{ slot }}" disabled>Load this look</button>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      <p id="appearance-preset-feedback" class="form-help" role="status" aria-live="polite"></p>
+    </div>
+    <form action="/settings/appearance" method="post" id="appearance-form" class="settings-form">
+      <div class="appearance-layout">
+        <div class="appearance-controls">
+          <h3>Color palette</h3>
+          <p class="form-help">Choose the colors used throughout the site. The preview updates as you make changes.</p>
+          <div class="color-grid">
+            {% set color_fields = [
+              ("background_color", "Page background"),
+              ("surface_color", "Panels and cards"),
+              ("raised_surface_color", "Raised surfaces"),
+              ("accent_color", "Primary accent"),
+              ("accent_text_color", "Accent highlights"),
+              ("text_color", "Main text"),
+              ("muted_text_color", "Muted text"),
+              ("border_color", "Borders")
+            ] %}
+            {% for field, label in color_fields %}
+            <label class="color-field">
+              <span>{{ label }}</span>
+              <input type="color" name="{{ field }}" value="{{ appearance[field] }}" data-theme-field="{{ field }}">
+              <code>{{ appearance[field] }}</code>
+            </label>
+            {% endfor %}
+          </div>
+          <h3 class="subsection-title">Typography & layout</h3>
+          <div class="settings-grid">
+            <label class="field"><span>Font family</span>
+              <select name="font_family" id="font-family">
+                {% for font in ["Segoe UI", "Arial", "Verdana", "Tahoma", "Georgia", "Trebuchet MS", "Courier New"] %}
+                <option value="{{ font }}" {% if appearance.font_family == font %}selected{% endif %}>{{ font }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field"><span>Font size <output id="font-size-value">{{ appearance.font_size }}px</output></span>
+              <input type="range" name="font_size" id="font-size" min="13" max="21" value="{{ appearance.font_size }}">
+            </label>
+            <label class="field"><span>Corner roundness <output id="radius-value">{{ appearance.corner_radius }}px</output></span>
+              <input type="range" name="corner_radius" id="corner-radius" min="6" max="28" value="{{ appearance.corner_radius }}">
+            </label>
+            <label class="field"><span>Interface spacing</span>
+              <select name="density">
+                <option value="compact" {% if appearance.density == "compact" %}selected{% endif %}>Compact</option>
+                <option value="comfortable" {% if appearance.density == "comfortable" %}selected{% endif %}>Comfortable</option>
+                <option value="spacious" {% if appearance.density == "spacious" %}selected{% endif %}>Spacious</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <aside class="appearance-preview-wrap">
+          <div class="preview-label">LIVE PREVIEW</div>
+          <div class="appearance-preview" id="appearance-preview">
+            <div class="preview-top"><span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-title">LlamaQueue</span></div>
+            <div class="preview-content">
+              <span class="preview-kicker">YOUR CONTROL ROOM</span>
+              <h3>Queue dashboard</h3>
+              <p>Customize the look. Keep control of the queue.</p>
+              <div class="preview-stat"><span>Players waiting</span><strong>08</strong></div>
+              <div class="preview-action">Open queue</div>
+            </div>
+          </div>
+          <p class="preview-help">This sample reflects the global colors, type, and spacing.</p>
+        </aside>
+      </div>
+      <div class="form-actions appearance-actions"><button class="primary-button" type="submit">Save website appearance</button></div>
+    </form>
+    <form action="/settings/appearance/reset" method="post" class="reset-form">
+      <button class="text-button" type="submit">Reset website appearance to defaults</button>
+    </form>
+  </section>
+
+  <section class="priority-settings-card">
+    <div class="priority-settings-heading">
+      <div>
+        <p class="section-kicker">QUEUE ADVANTAGES</p>
+        <h2>Subscription Priority</h2>
+        <p>Verified active memberships can move eligible viewers ahead of lower-priority entries. Rank 1 is highest. Subscription age never changes priority.</p>
+      </div>
+      <span class="priority-status-pill">Separate priority groups</span>
+    </div>
+    {% if request.query_params.get('priority_error') %}
+      <p class="priority-error" role="alert">Each category needs its own rank from 1 to 4. No two categories can share a rank.</p>
+    {% endif %}
+    {% if request.query_params.get('saved') == 'priority' %}
+      <p class="priority-saved" role="status">Priority settings saved.</p>
+    {% endif %}
+    <form action="/settings/priority" method="post">
+      <label class="priority-enable"><input type="checkbox" name="priority_enabled" value="1" {% if priority_settings.enabled %}checked{% endif %}> Enable automatic subscription priority</label>
+      <div class="priority-rank-grid">
+        <label><span>Twitch Tier 3 · $24.99</span>
+          <select name="priority_t3">
+            {% for rank in range(1,5) %}<option value="{{ rank }}" {% if priority_settings.ranks.twitch_t3 == rank %}selected{% endif %}>Priority {{ rank }}</option>{% endfor %}
+          </select>
+        </label>
+        <label><span>Twitch Tier 2 · $9.99</span>
+          <select name="priority_t2">
+            {% for rank in range(1,5) %}<option value="{{ rank }}" {% if priority_settings.ranks.twitch_t2 == rank %}selected{% endif %}>Priority {{ rank }}</option>{% endfor %}
+          </select>
+        </label>
+        <label><span>YouTube Member · $7.99</span>
+          <select name="priority_youtube_member">
+            {% for rank in range(1,5) %}<option value="{{ rank }}" {% if priority_settings.ranks.youtube_member == rank %}selected{% endif %}>Priority {{ rank }}</option>{% endfor %}
+          </select>
+        </label>
+        <label><span>Twitch Tier 1 + Prime (shared rank) · $5.99 Tier 1</span>
+          <select name="priority_t1">
+            {% for rank in range(1,5) %}<option value="{{ rank }}" {% if priority_settings.ranks.twitch_t1 == rank %}selected{% endif %}>Priority {{ rank }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
+      <p class="priority-price-note">Default order follows the US price comparison. Prime shares Tier 1 priority. Actual prices may vary by country and purchase method. Twitch tier verification requires granting the added permission through Unified Chat → Update permissions. Priority is granted only from verified platform IDs, never from a typed username.</p>
+      <div class="priority-settings-actions"><button class="primary-button" type="submit">Save priority order</button></div>
+    </form>
+  </section>
 </div>
-
+<script src="/static/js/appearance.js" defer></script>
+<script src="/static/js/appearance-presets.js" defer></script>
 {% endblock %}

@@ -1,22 +1,27 @@
-# Environment variables
+# Secrets and local configuration
 .env
-
-# OAuth credentials
+.env.*
+!.env.example
 credentials/client_secret.json
 credentials/token.pickle
 
-# Python cache
+# Python caches and virtual environments
 __pycache__/
 *.py[cod]
-
-# Virtual environments
 .venv/
 venv/
 
-# IDE settings
+# Local databases and SQLite sidecars
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
+
+# IDE and operating system files
 .vscode/
 .idea/
-
-# OS files
 .DS_Store
 Thumbs.db

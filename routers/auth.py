@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -7,7 +9,9 @@ import requests
 from auth.google import oauth as google_oauth
 from auth.twitch import oauth as twitch_oauth
 from auth.nightbot import oauth as nightbot_oauth
-from database.models import User, Community 
+from database.models import User, Community
+from chat.models import ChatConnection
+from chat.security import encrypt_token
 from database.session import SessionLocal
 
 router = APIRouter(
@@ -39,6 +43,36 @@ async def login_nightbot(request: Request):
         request,
         redirect_uri,
     )    
+
+
+def _save_chat_connection(db: Session, user_id: int, platform: str, token: dict,
+                          platform_user_id: str, login: str | None,
+                          display_name: str | None) -> bool:
+    """Save chat credentials only for an explicit Unified Chat connection."""
+    try:
+        encrypted_access = encrypt_token(token.get("access_token"))
+        encrypted_refresh = encrypt_token(token.get("refresh_token"))
+    except RuntimeError:
+        return False
+    if not encrypted_access:
+        return False
+    expires_at = (
+        datetime.utcfromtimestamp(float(token["expires_at"]))
+        if token.get("expires_at") else None
+    )
+    row = db.query(ChatConnection).filter_by(user_id=user_id, platform=platform).first()
+    if row is None:
+        row = ChatConnection(user_id=user_id, platform=platform)
+        db.add(row)
+    row.access_token = encrypted_access
+    if encrypted_refresh:
+        row.refresh_token = encrypted_refresh
+    row.expires_at = expires_at
+    row.platform_user_id = str(platform_user_id)
+    row.platform_login = login
+    row.platform_display_name = display_name
+    db.commit()
+    return True
 
 
 @router.get("/twitch/callback", name="twitch_callback")
@@ -117,8 +151,20 @@ async def twitch_callback(request: Request):
     request.session["user_id"] = existing_user.id
     request.session["community_id"] = community.id
 
+    chat_intent = request.session.pop("chat_connect_platform", None)
+    chat_saved = True
+    if chat_intent == "twitch":
+        chat_saved = _save_chat_connection(
+            db, existing_user.id, "twitch", token, user["id"],
+            user.get("login"), user.get("display_name")
+        )
     db.close()
 
+    if chat_intent == "twitch":
+        return RedirectResponse(
+            url="/chat?connected=twitch" if chat_saved else "/chat?error=chat_encryption",
+            status_code=303,
+        )
     return RedirectResponse(url="/")
 
 @router.get("/nightbot/callback", name="nightbot_callback")
@@ -281,8 +327,20 @@ async def auth_callback(request: Request):
     request.session["user_id"] = existing_user.id
     request.session["community_id"] = community.id
 
+    chat_intent = request.session.pop("chat_connect_platform", None)
+    chat_saved = True
+    if chat_intent == "youtube":
+        chat_saved = _save_chat_connection(
+            db, existing_user.id, "youtube", token, user["sub"],
+            user.get("email"), user.get("name")
+        )
     db.close()
 
+    if chat_intent == "youtube":
+        return RedirectResponse(
+            url="/chat?connected=youtube" if chat_saved else "/chat?error=chat_encryption",
+            status_code=303,
+        )
     return RedirectResponse(url="/")
 
 

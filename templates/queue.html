@@ -6,6 +6,8 @@
 
     <h1>👥 Queue Management</h1>
 
+
+
     <div class="dashboard-grid">
 
         <!-- LEFT COLUMN -->
@@ -55,6 +57,7 @@
                     <tr>
                         <th>YouTube</th>
                         <th>Player</th>
+                        <th>Priority</th>
                     </tr>
 
                     {% for player in current %}
@@ -64,6 +67,8 @@
                         <td>{{ player.youtube }}</td>
 
                         <td>{{ player.player if player.player else "Not Set" }}</td>
+
+                        <td>{% if player.priority_badge %}<span class="queue-priority-pill">{{ player.priority_badge }}</span>{% else %}<span class="queue-standard-label">Standard</span>{% endif %}</td>
 
                     </tr>
 
@@ -137,6 +142,8 @@
 
                         <th>Player</th>
 
+                        <th>Priority</th>
+
                         <th>Waiting</th>
 
                         <th>Actions</th>
@@ -176,6 +183,8 @@
                         </td>
 
                         <td>{{ player.player if player.player else "Not Set" }}</td>
+
+                        <td>{% if player.priority_badge %}<span class="queue-priority-pill">{{ player.priority_badge }}</span>{% else %}<span class="queue-standard-label">Standard</span>{% endif %}</td>
 
                         <td>
 
@@ -296,5 +305,7 @@
     </div>
 
 </div>
+
+
 
 {% endblock %}

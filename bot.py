@@ -11,6 +11,7 @@ from services.queue_service import QueueService
 from services.registration_service import RegistrationService
 from services.moderator_service import ModeratorService
 from services.activity_service import ActivityService
+from services.priority_service import PriorityService
 
 
 # ==========================================================
@@ -105,7 +106,7 @@ class LlamaBot:
 
     # ------------------------------------------------------
 
-    def process(self, username: str, message: str) -> BotResponse:
+    def process(self, username: str, message: str, chatter_provider: str | None = None, chatter_provider_id: str | None = None) -> BotResponse:
 
         message = message.strip()
 
@@ -194,7 +195,7 @@ class LlamaBot:
     # !join
     # ======================================================
 
-    def join(self, username: str, message: str) -> BotResponse:
+    def join(self, username: str, message: str, chatter_provider: str | None = None, chatter_provider_id: str | None = None) -> BotResponse:
 
         s = self.services()
 
@@ -223,9 +224,13 @@ class LlamaBot:
                     username=username,
                 )
 
+            priority = PriorityService.resolve(
+                db, self.creator_id, chatter_provider, chatter_provider_id
+            )
             success = queue.join(
                 username,
                 player,
+                priority=priority,
             )
 
             if not success:
@@ -246,8 +251,11 @@ class LlamaBot:
                 )
 
             players = queue.get_players()
-
-            position = len(players)
+            position = next(
+                (index + 1 for index, item in enumerate(players)
+                 if item["youtube"].lower() == username.lower()),
+                len(players),
+            )
 
             lobby_size = queue.get_lobby_size()
 

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LlamaQueue Chat Overlay</title>
+<link rel="stylesheet" href="/static/chat.css">
+</head>
+<body class="chat-overlay-body">
+<div class="chat-overlay-feed" id="chat-message-list" data-overlay-token="{{ overlay_token }}">
+    <div class="chat-empty" id="chat-empty"><strong>Waiting for chat…</strong></div>
+</div>
+<script type="application/json" id="chat-appearance-json">{{ appearance|tojson }}</script>
+<script src="/static/js/chat-overlay.js" defer></script>
+</body>
+</html>
