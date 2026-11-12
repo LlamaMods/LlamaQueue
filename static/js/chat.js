@@ -12,6 +12,30 @@
     let sendTarget = 'all';
     let total = 0;
     const pinned = loadPinned();
+    const commonBots = {nightbot:/^nightbot$/i,streamelements:/^streamelements?$/i,streamerbot:/^streamer[. _-]?bot$/i,moobot:/^moobot$/i,fossabot:/^fossabot$/i,wizebot:/^wizebot$/i,botrix:/^botrix$/i,sery_bot:/^sery_bot$/i};
+    function selectedBotFilters() { try { const value = JSON.parse(localStorage.getItem('llamaqueue-bot-filters') || '[]'); return Array.isArray(value) ? value : []; } catch (_) { return []; } }
+    function isFilteredBot(username) { const name = String(username || '').trim(); return selectedBotFilters().some(key => commonBots[key]?.test(name)); }
+    const creatorName = (document.getElementById('llama-chat-page')?.dataset.creatorName || '').trim();
+    const mentionPattern = creatorName ? new RegExp('(^|\\s)@?' + creatorName.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&') + '(?=$|[\\s.,!?])', 'i') : null;
+    const focusButton = document.getElementById('chat-focus-toggle');
+    async function enterChatFocus() {
+        document.body.classList.add('chat-focus-mode');
+        if (focusButton) { focusButton.textContent = 'Exit focus'; focusButton.setAttribute('aria-pressed','true'); }
+        try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen(); } catch (_) { /* CSS focus mode remains available if fullscreen is blocked. */ }
+    }
+    async function exitChatFocus() {
+        document.body.classList.remove('chat-focus-mode');
+        if (focusButton) { focusButton.textContent = 'Focus chat'; focusButton.setAttribute('aria-pressed','false'); }
+        try { if (document.fullscreenElement) await document.exitFullscreen(); } catch (_) {}
+    }
+    focusButton?.addEventListener('click', () => document.body.classList.contains('chat-focus-mode') ? exitChatFocus() : enterChatFocus());
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement && document.body.classList.contains('chat-focus-mode')) {
+            document.body.classList.remove('chat-focus-mode');
+            if (focusButton) { focusButton.textContent = 'Focus chat'; focusButton.setAttribute('aria-pressed','false'); }
+        }
+    });
+    window.addEventListener('keydown', event => { if (event.key === 'Escape' && document.body.classList.contains('chat-focus-mode') && !document.fullscreenElement) exitChatFocus(); });
 
     function applyAppearance(settings) {
         appearance = {...defaults, ...settings};
@@ -96,6 +120,7 @@
             button.dataset.pinned = person.key;
             const platform = document.createElement('span'); platform.className = `tab-dot ${person.platform}-dot`;
             const name = document.createElement('span'); name.textContent = person.username;
+            if (person.mentioned) button.classList.add('has-mention');
             const remove = document.createElement('span'); remove.className = 'unpin-x'; remove.textContent = '×'; remove.title = 'Unpin chatter';
             button.append(platform, name, remove);
             button.addEventListener('click', event => {
@@ -104,6 +129,7 @@
                     if (activeView === `pinned:${person.key}`) activeView = 'all';
                     savePinned(); renderPinnedTabs(); refreshPinButtons(); updateVisibility(); return;
                 }
+                person.mentioned = false; savePinned();
                 activeView = `pinned:${person.key}`; renderPinnedTabs(); updateMainTabs(); updateVisibility();
                 setSendTarget(person.platform);
             });
@@ -118,7 +144,7 @@
         list.querySelectorAll('.chat-message').forEach(row => {
             let visible = activeView === 'all' || row.dataset.platform === activeView;
             if (activeView.startsWith('pinned:')) visible = row.dataset.userKey === activeView.slice(7);
-            row.hidden = !visible;
+            row.hidden = !visible || isFilteredBot(row.dataset.username);
         });
         if (count) count.textContent = `${list.querySelectorAll('.chat-message:not([hidden])').length} visible · ${total} received`;
     }
@@ -141,6 +167,8 @@
 
     function addMessage(message) {
         if (!message || !message.text) return;
+        const isBot = Object.values(commonBots).some(pattern => pattern.test(String(message.username || '').trim()));
+        if (isFilteredBot(message.username)) return;
         const id = String(message.id || `${message.username}:${message.timestamp}:${message.text}`);
         const key = `${message.platform}:${id}`;
         if (seen.has(key)) return;
@@ -149,11 +177,14 @@
         const row = document.createElement('article');
         row.className = 'chat-message'; row.dataset.platform = message.platform;
         row.dataset.userKey = chatterKey(message.platform, message.user_id, message.username);
+        row.dataset.isBot = isBot ? '1' : '0';
+        row.dataset.username = String(message.username || '');
         row.dataset.messageId = id;
         const badge = document.createElement('span'); badge.className = `chat-message-platform ${message.platform}`; badge.textContent = message.platform === 'twitch' ? 'T' : '▶';
         const content = document.createElement('div'); content.className = 'chat-message-content';
         const meta = document.createElement('div'); meta.className = 'chat-message-meta';
         const username = document.createElement('span'); username.className = 'chat-message-user'; username.textContent = message.username || 'Viewer';
+        if (message.moderator || message.owner || message.broadcaster) { const role = document.createElement('span'); role.className = 'chat-role-icon' + (message.owner || message.broadcaster ? ' lead' : ''); role.textContent = message.owner || message.broadcaster ? '★' : '◆'; role.title = message.owner || message.broadcaster ? 'Channel owner / lead' : 'Moderator'; role.setAttribute('aria-label', role.title); username.append(role); }
         const time = document.createElement('span'); time.className = 'chat-message-time';
         const date = new Date(message.timestamp || Date.now()); time.textContent = Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
         const text = document.createElement('div'); text.className = 'chat-message-text'; text.textContent = message.text;
@@ -171,10 +202,11 @@
                 tenureTag.textContent = String(message.tenure_badge).slice(0, 8);
                 meta.append(tenureTag);
             }
-            const labels = [...(message.badges || [])];
+            (message.badge_icons || []).slice(0, 6).forEach((src, index) => { if (!/^https:\/\//i.test(src)) return; const icon = document.createElement('img'); icon.className='chat-platform-badge-icon'; icon.src=src; icon.alt='Twitch badge'; icon.title='Twitch badge'; icon.loading='lazy'; meta.append(icon); });
+            const labels = [...(message.badges || [])].filter(label => !/^moderator$/i.test(String(label)));
             if (message.member && !message.subscription_badge && !labels.includes('Member')) labels.push('Member');
             if (message.verified && !labels.includes('Verified')) labels.push('Verified');
-            if (message.moderator && !labels.includes('Moderator')) labels.push('Moderator');
+
             if (message.vip) labels.push('VIP'); if (message.broadcaster || message.owner) labels.push('Owner');
             labels.slice(0, 6).forEach(label => { const tag = document.createElement('span'); tag.className = 'chat-user-badge'; tag.textContent = String(label).replace(/[^a-z0-9 _-]/gi,'').slice(0,32); meta.append(tag); });
         }
@@ -182,6 +214,15 @@
         const actions = document.createElement('div'); actions.className = 'chat-message-actions';
         const pin = document.createElement('button'); pin.type = 'button'; pin.className = 'chat-message-action chat-pin-chatter';
         const person = {key: row.dataset.userKey, platform: message.platform, userId: message.user_id || null, username: message.username || 'Viewer'};
+        const isModerator = !!(message.moderator || message.owner || message.broadcaster);
+        const mentionsCreator = !!(mentionPattern && mentionPattern.test(String(message.text)));
+        if (isModerator && mentionsCreator) {
+            row.classList.add('chat-message-mentioned');
+            const existing = pinned.find(item => item.key === person.key);
+            if (existing) existing.mentioned = true;
+            else { if (pinned.length >= 20) pinned.shift(); pinned.push({...person, mentioned:true, autoPinned:true}); }
+            savePinned(); renderPinnedTabs();
+        }
         const isPinned = () => pinned.some(item => item.key === person.key);
         pin.textContent = isPinned() ? 'Unpin' : 'Pin chatter';
         pin.setAttribute('aria-pressed', String(isPinned()));
@@ -214,7 +255,7 @@
             });
             actions.append(timeout, ban);
         }
-        if (message.id && !String(message.id).startsWith('preview-') && !message.broadcaster) {
+        if (message.id && !String(message.id).startsWith('preview-')) {
             const del = document.createElement('button'); del.type = 'button'; del.className = 'chat-message-action chat-delete-message'; del.textContent = 'Delete';
             del.addEventListener('click', async () => {
                 del.disabled = true; del.textContent = 'Deleting…';
@@ -222,7 +263,8 @@
                     const response = await fetch('/chat/api/moderate/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({platform:message.platform,message_id:message.id})});
                     const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Delete failed');
                     markDeleted(message.platform, id, 'You');
-                } catch (error) { del.disabled = false; del.textContent = 'Delete'; window.alert(error.message); }
+                    const status=document.getElementById('chat-send-status'); if(status) status.textContent=`Message deleted on ${message.platform}.`;
+                } catch (error) { del.disabled = false; del.textContent = 'Delete'; const status=document.getElementById('chat-send-status'); if(status) status.textContent=`Delete failed on ${message.platform}: ${error.message}`; window.alert(error.message); }
             });
             actions.append(del);
         }

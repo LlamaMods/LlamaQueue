@@ -42,6 +42,37 @@
     </form>
   </section>
 
+  <section class="settings-section" id="language-settings">
+    <div class="section-heading">
+      <div><p class="eyebrow">PERSONALIZATION</p><h2>Language</h2>
+      <p class="section-description">Choose the language for the entire LlamaQueue interface. Your choice is saved on this device and applies immediately.</p></div>
+      <span class="section-icon" aria-hidden="true">🌐</span>
+    </div>
+    <label class="field language-setting-field" for="llama-language"><span>Interface language</span>
+      <select id="llama-language" name="language">
+        <option value="en">English</option>
+        <option value="es">Español</option>
+        <option value="fr">Français</option>
+        <option value="de">Deutsch</option>
+        <option value="pt">Português</option>
+      </select>
+    </label>
+  </section>
+
+  <section class="settings-section" id="chat-filter-settings">
+    <div class="section-heading">
+      <div><p class="eyebrow">CHAT CONTROLS</p><h2>Chat filters</h2>
+      <p class="section-description">Choose which recognized bots are hidden from the Omni chat feed. These preferences are saved in this browser.</p></div>
+      <span class="section-icon">🛡️</span>
+    </div>
+    <div class="settings-grid settings-grid-four chat-filter-options">
+      {% for bot in [("nightbot","Nightbot"),("streamelements","StreamElements"),("streamerbot","Streamer.bot"),("moobot","Moobot"),("fossabot","Fossabot"),("wizebot","Wizebot"),("botrix","Botrix"),("sery_bot","Sery_Bot")] %}
+      <label class="field chat-filter-option"><span><input type="checkbox" class="chat-bot-setting" value="{{ bot[0] }}"> {{ bot[1] }}</span></label>
+      {% endfor %}
+    </div>
+    <p class="form-help" id="chat-filter-save-status" role="status">Changes save automatically on this device.</p>
+  </section>
+
   <section class="settings-section">
     <div class="section-heading">
       <div><p class="eyebrow">MAKE IT YOURS</p><h2>Website appearance</h2>
@@ -182,6 +213,22 @@
     </form>
   </section>
 </div>
+<script>
+(() => {
+  const key = 'llamaqueue-bot-filters';
+  let selected = [];
+  try { selected = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
+  document.querySelectorAll('.chat-bot-setting').forEach(input => {
+    input.checked = selected.includes(input.value);
+    input.addEventListener('change', () => {
+      const values = [...document.querySelectorAll('.chat-bot-setting:checked')].map(item => item.value);
+      localStorage.setItem(key, JSON.stringify(values));
+      const status = document.getElementById('chat-filter-save-status');
+      if (status) status.textContent = 'Bot filter preferences saved.';
+    });
+  });
+})();
+</script>
 <script src="/static/js/appearance.js" defer></script>
 <script src="/static/js/appearance-presets.js" defer></script>
 {% endblock %}

@@ -28,6 +28,7 @@ class ChatHub:
         self.tasks: dict[tuple[int, str], asyncio.Task] = {}
         self.status: dict[int, dict[str, str]] = {}
         self.youtube_live_chat_ids: dict[int, str] = {}
+        self.twitch_badge_cache: dict[str, dict[str, str]] = {}
         self._lock = asyncio.Lock()
 
     async def publish(self, user_id: int, message: dict[str, Any]):
@@ -298,6 +299,23 @@ class ChatHub:
                     reconnecting = False
                     retry_delay = 5
                     await self.set_status(user_id, "twitch", "Connected")
+                    badge_cache_key = str(config["platform_user_id"])
+                    if badge_cache_key not in self.twitch_badge_cache:
+                        try:
+                            badge_response = await asyncio.to_thread(
+                                requests.get, "https://api.twitch.tv/helix/chat/badges",
+                                headers={"Client-ID": client_id, "Authorization": f"Bearer {token}"},
+                                params={"broadcaster_id": badge_cache_key}, timeout=15
+                            )
+                            badge_response.raise_for_status()
+                            badge_map = {}
+                            for badge_set in badge_response.json().get("data", []):
+                                for version in badge_set.get("versions", []):
+                                    badge_map[f"{badge_set.get('set_id')}:{version.get('id')}"] = version.get("image_url_2x") or version.get("image_url_1x")
+                            self.twitch_badge_cache[badge_cache_key] = badge_map
+                        except Exception:
+                            logger.info("Twitch badge artwork unavailable for user %s", user_id)
+                            self.twitch_badge_cache[badge_cache_key] = {}
 
                     while True:
                         raw = await ws.recv()
@@ -352,6 +370,7 @@ class ChatHub:
                             "timestamp": message.get("sent_at") or datetime.now(timezone.utc).isoformat(),
                             "color": event.get("color"),
                             "badges": [f"{badge.get('set_id')} {badge.get('id')}".strip() for badge in badge_rows if badge.get("set_id") != "subscriber"],
+                            "badge_icons": [self.twitch_badge_cache.get(str(config["platform_user_id"]), {}).get(f"{badge.get('set_id')}:{badge.get('id')}") for badge in badge_rows if self.twitch_badge_cache.get(str(config["platform_user_id"]), {}).get(f"{badge.get('set_id')}:{badge.get('id')}")],
                             "subscription_badge": tier_labels.get(identity.get("subscription_key")) or ("SUB" if subscriber_badge else None),
                             "tenure_badge": self._tenure_badge(identity.get("tenure_months")),
                             "moderator": "moderator" in badge_sets,

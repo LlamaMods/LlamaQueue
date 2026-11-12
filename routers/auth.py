@@ -331,8 +331,10 @@ async def auth_callback(request: Request):
     chat_saved = True
     if chat_intent == "youtube":
         chat_saved = _save_chat_connection(
-            db, existing_user.id, "youtube", token, user["sub"],
-            user.get("email"), user.get("name")
+            db, existing_user.id, "youtube", token,
+            youtube_channel_id or existing_user.youtube_channel_id or user["sub"],
+            youtube_channel_handle or existing_user.youtube_channel_handle,
+            youtube_channel_name or existing_user.youtube_channel_name or "YouTube channel"
         )
     db.close()
 

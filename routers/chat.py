@@ -263,22 +263,52 @@ async def send_chat_message(request: Request):
             token = decrypt_token(row.access_token)
             try:
                 if platform == "twitch":
+                    # The sender is the account whose OAuth token is stored on this
+                    # connection. The broadcaster is the creator's channel, which
+                    # may be a different account when a moderator connects.
+                    broadcaster_id = str(user.twitch_user_id or row.platform_user_id)
+                    sender_id = str(row.platform_user_id)
+                    client_id = os.getenv("TWITCH_CLIENT_ID", "")
+                    if not client_id or not broadcaster_id or not sender_id:
+                        raise RuntimeError("Twitch connection is missing its channel or sender identity. Reconnect Twitch in Unified Chat.")
                     response = await asyncio.to_thread(
                         requests.post, "https://api.twitch.tv/helix/chat/messages",
-                        headers={"Client-ID": os.getenv("TWITCH_CLIENT_ID", ""), "Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                        json={"broadcaster_id": row.platform_user_id, "sender_id": row.platform_user_id, "message": message}, timeout=20)
+                        headers={"Client-ID": client_id, "Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                        json={"broadcaster_id": broadcaster_id, "sender_id": sender_id, "message": message}, timeout=20)
                     if response.status_code not in (200, 201):
-                        raise RuntimeError(f"Twitch rejected the message ({response.status_code}). Reconnect Unified Chat if permissions changed.")
+                        detail = ""
+                        try:
+                            detail = response.json().get("message", "")
+                        except Exception:
+                            detail = response.text[:160]
+                        raise RuntimeError(f"Twitch rejected the message ({response.status_code}): {detail or 'Check the connected account and user:write:chat permission.'}")
+                    try:
+                        twitch_result = response.json().get("data", [{}])[0]
+                    except Exception:
+                        twitch_result = {}
+                    if twitch_result.get("is_sent") is False:
+                        drop = twitch_result.get("drop_reason") or {}
+                        reason = drop.get("message") or drop.get("code") or "Twitch did not deliver the message."
+                        raise RuntimeError(str(reason))
                     results[platform] = {"ok": True}
                 else:
                     live_chat_id = chat_hub.youtube_live_chat_ids.get(user.id)
-                    if not live_chat_id:
-                        raise RuntimeError("No active YouTube live chat was found.")
                     credentials = Credentials(token=token, refresh_token=decrypt_token(row.refresh_token),
                         token_uri="https://oauth2.googleapis.com/token", client_id=os.getenv("GOOGLE_CLIENT_ID"),
                         client_secret=os.getenv("GOOGLE_CLIENT_SECRET"), expiry=row.expires_at,
                         scopes=["https://www.googleapis.com/auth/youtube.force-ssl"])
                     service = await asyncio.to_thread(build, "youtube", "v3", credentials=credentials, cache_discovery=False)
+                    # If the listener has not populated its cache yet, ask YouTube
+                    # for the active broadcast belonging to this connected channel.
+                    if not live_chat_id:
+                        broadcasts = await asyncio.to_thread(lambda: service.liveBroadcasts().list(
+                            part="snippet,status", broadcastStatus="active", mine=True, maxResults=5
+                        ).execute())
+                        active = broadcasts.get("items", [])
+                        live_chat_id = next((item.get("snippet", {}).get("liveChatId") for item in active
+                                             if item.get("snippet", {}).get("liveChatId")), None)
+                    if not live_chat_id:
+                        raise RuntimeError("No active YouTube live chat was found for the connected channel.")
                     body = {"snippet": {"liveChatId": live_chat_id, "type": "textMessageEvent", "textMessageDetails": {"messageText": message}}}
                     await asyncio.to_thread(lambda: service.liveChatMessages().insert(part="snippet", body=body).execute())
                     results[platform] = {"ok": True}
@@ -318,9 +348,9 @@ async def delete_chat_message(request: Request):
             response = await asyncio.to_thread(
                 requests.delete, "https://api.twitch.tv/helix/moderation/chat",
                 headers={"Client-ID": os.getenv("TWITCH_CLIENT_ID", ""), "Authorization": f"Bearer {token}"},
-                params={"broadcaster_id": row.platform_user_id, "moderator_id": row.platform_user_id, "message_id": message_id}, timeout=20)
+                params={"broadcaster_id": str(user.twitch_user_id or row.platform_user_id), "moderator_id": str(row.platform_user_id), "message_id": message_id}, timeout=20)
             if response.status_code not in (200, 204):
-                return JSONResponse({"error": f"Twitch rejected the delete ({response.status_code}). Check moderator permissions and reconnect if needed."}, status_code=403)
+                return JSONResponse({"error": f"Twitch rejected the delete ({response.status_code}): {response.text[:180]}. The connected chat account must be a moderator and have moderator:manage:chat_messages permission."}, status_code=403)
         else:
             credentials = Credentials(token=token, refresh_token=decrypt_token(row.refresh_token),
                 token_uri="https://oauth2.googleapis.com/token", client_id=os.getenv("GOOGLE_CLIENT_ID"),

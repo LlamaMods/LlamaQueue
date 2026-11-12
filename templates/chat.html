@@ -5,7 +5,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="chat-page" id="llama-chat-page">
+<div class="chat-page" id="llama-chat-page" data-creator-name="{{ settings.creator_name|e }}">
     <div class="chat-heading">
         <div>
             <p class="chat-eyebrow">LLAMAQUEUE · LIVE TOOLS</p>
@@ -31,12 +31,12 @@
         <article class="chat-platform-card">
             <div class="chat-platform-title"><span class="chat-platform-icon twitch-icon">T</span><div><h2>Twitch</h2><p>{% if connections.get('twitch') %}{{ connections['twitch'].platform_display_name or connections['twitch'].platform_login }}{% else %}Not connected{% endif %}</p></div></div>
             <div class="chat-platform-footer"><span class="chat-status-dot" id="twitch-status-dot"></span><span id="twitch-status">{% if connections.get('twitch') %}Starting…{% else %}Connect an account{% endif %}</span>
-            {% if connections.get('twitch') %}<a class="chat-link-button" href="/chat/connect/twitch">Update permissions</a><form method="post" action="/chat/disconnect/twitch"><button class="chat-link-button" type="submit">Disconnect</button></form>{% elif local_test_mode %}<span class="chat-link-button">Connect on Render for live chat</span>{% else %}<a class="chat-connect-button twitch-button" href="/chat/connect/twitch">Connect Twitch</a>{% endif %}</div>
+            {% if connections.get('twitch') %}<a class="chat-link-button twitch-button" href="/chat/connect/twitch">Update permissions</a><form method="post" action="/chat/disconnect/twitch"><button class="chat-link-button twitch-button" type="submit">Disconnect</button></form>{% elif local_test_mode %}<span class="chat-link-button twitch-button">Connect on Render for live chat</span>{% else %}<a class="chat-connect-button twitch-button" href="/chat/connect/twitch">Connect Twitch</a>{% endif %}</div>
         </article>
         <article class="chat-platform-card">
             <div class="chat-platform-title"><span class="chat-platform-icon youtube-icon">▶</span><div><h2>YouTube</h2><p>{% if connections.get('youtube') %}{{ connections['youtube'].platform_display_name or connections['youtube'].platform_login }}{% else %}Not connected{% endif %}</p></div></div>
             <div class="chat-platform-footer"><span class="chat-status-dot" id="youtube-status-dot"></span><span id="youtube-status">{% if connections.get('youtube') %}Starting…{% else %}Connect an account{% endif %}</span>
-            {% if connections.get('youtube') %}<a class="chat-link-button" href="/chat/connect/google">Update permissions</a><form method="post" action="/chat/disconnect/youtube"><button class="chat-link-button" type="submit">Disconnect</button></form>{% elif local_test_mode %}<span class="chat-link-button">Connect on Render for live chat</span>{% else %}<a class="chat-connect-button youtube-button" href="/chat/connect/google">Connect YouTube</a>{% endif %}</div>
+            {% if connections.get('youtube') %}<a class="chat-link-button youtube-button" href="/chat/connect/google">Update permissions</a><form method="post" action="/chat/disconnect/youtube"><button class="chat-link-button youtube-button" type="submit">Disconnect</button></form>{% elif local_test_mode %}<span class="chat-link-button youtube-button">Connect on Render for live chat</span>{% else %}<a class="chat-connect-button youtube-button" href="/chat/connect/google">Connect YouTube</a>{% endif %}</div>
         </article>
     </section>
 
@@ -66,7 +66,7 @@
     <section class="chat-workspace">
         <div class="chat-toolbar">
             <div><h2>Live messages</h2><span id="chat-message-count">Waiting for messages</span></div>
-            <div class="chat-toolbar-actions"><button type="button" id="preview-chat" class="chat-link-button">Preview sample chat</button></div>
+            <div class="chat-toolbar-actions"><button type="button" id="chat-focus-toggle" class="chat-link-button" aria-pressed="false">Focus chat</button><button type="button" id="preview-chat" class="chat-link-button">Preview sample chat</button></div>
         </div>
         <nav class="chat-tabbar" id="chat-tabbar" aria-label="Chat views">
             <button class="chat-tab active" type="button" data-view="all"><span class="tab-dot integrated-dot"></span>Omni</button>
