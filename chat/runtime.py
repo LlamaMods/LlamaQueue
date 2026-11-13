@@ -405,7 +405,7 @@ class ChatHub:
                 token_uri="https://oauth2.googleapis.com/token",
                 client_id=os.getenv("GOOGLE_CLIENT_ID"),
                 client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-                scopes=["https://www.googleapis.com/auth/youtube.readonly"],
+                scopes=["https://www.googleapis.com/auth/youtube.force-ssl"],
             )
             youtube = await asyncio.to_thread(build, "youtube", "v3", credentials=credentials, cache_discovery=False)
             previous_chat_id = None
