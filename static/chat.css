@@ -219,3 +219,149 @@
 .chat-customizer-grid .chat-toggle input[type="checkbox"] { appearance:auto; -webkit-appearance:checkbox; width:15px !important; min-width:15px; max-width:15px; height:15px !important; min-height:15px !important; margin:0; padding:0; flex:0 0 15px; accent-color:var(--green,#33c759); cursor:pointer; }
 .language-setting-field { max-width:360px; }
 .language-setting-field select { width:100%; }
+
+
+/* Mobile responsive correction — connection cards and live chat controls */
+@media (max-width: 760px) {
+  .chat-connections {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+    width: 100%;
+  }
+
+  .chat-platform-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 12px !important;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    box-sizing: border-box;
+  }
+
+  .chat-platform-title,
+  .chat-platform-title > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .chat-platform-title p,
+  .chat-platform-footer,
+  .chat-platform-footer > span,
+  .chat-platform-footer .chat-status,
+  #twitch-status,
+  #youtube-status {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .chat-platform-footer {
+    display: flex;
+    flex-wrap: wrap !important;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  .chat-platform-footer form {
+    display: inline-flex;
+    flex: 0 1 auto;
+    min-width: 0;
+    margin: 0 !important;
+  }
+
+  .chat-platform-footer .chat-link-button,
+  .chat-platform-footer .chat-connect-button,
+  .chat-platform-footer button {
+    max-width: 100%;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  .chat-toolbar {
+    position: relative;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start;
+    gap: 9px !important;
+    width: 100%;
+    min-width: 0;
+    padding: 11px !important;
+    overflow: visible;
+  }
+
+  .chat-toolbar > div:first-child {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .chat-toolbar-actions {
+    position: static !important;
+    display: flex !important;
+    flex-direction: row;
+    flex-wrap: wrap !important;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 7px !important;
+    width: 100%;
+    min-width: 0;
+    margin: 0 !important;
+  }
+
+  .chat-toolbar-actions button {
+    position: static !important;
+    flex: 1 1 140px;
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    margin: 0 !important;
+  }
+
+  .chat-tabbar {
+    position: relative;
+    display: flex !important;
+    flex-direction: row;
+    flex-wrap: wrap !important;
+    align-items: center;
+    gap: 7px !important;
+    width: 100%;
+    min-width: 0;
+    padding: 9px !important;
+    margin: 0 !important;
+    clear: both;
+    overflow: visible;
+    white-space: normal;
+    box-sizing: border-box;
+  }
+
+  .chat-tabbar .chat-tab {
+    position: static !important;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+
+  .chat-tabbar .chat-pinned-label,
+  .chat-tabbar .chat-pinned-tabs {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .chat-toolbar-actions button {
+    flex-basis: 100%;
+  }
+}
