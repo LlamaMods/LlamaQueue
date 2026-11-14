@@ -365,3 +365,72 @@
     flex-basis: 100%;
   }
 }
+
+
+/* LlamaQueue v1.5 Alpha — rich chat, badges, emotes and event cards */
+.chat-inline-emote {
+    display: inline-block;
+    width: auto;
+    height: 1.8em;
+    max-width: 5em;
+    object-fit: contain;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+.chat-message-text { overflow-wrap: anywhere; }
+.chat-event-message {
+    border: 1px solid rgba(214,165,45,.5) !important;
+    background: linear-gradient(110deg, rgba(214,165,45,.13), rgba(255,255,255,.025)) !important;
+}
+.chat-event-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 4px;
+    color: #f4d27a;
+    font-size: .72rem;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+.chat-event-detail {
+    display: inline-block;
+    margin: 0 0 5px 7px;
+    color: #f2c65c;
+    font-size: .78rem;
+    font-weight: 800;
+}
+.chat-event-cheer .chat-event-title,
+.chat-event-super_chat .chat-event-title { color: #ffd76a; }
+.chat-event-sub_gift .chat-event-title,
+.chat-event-community_sub_gift .chat-event-title,
+.chat-event-membership_gift .chat-event-title,
+.chat-event-membership_gift_received .chat-event-title { color: #d7b3ff; }
+.chat-pinned-label.has-mention {
+    color: #f2c65c !important;
+    text-shadow: 0 0 10px rgba(242,198,92,.55);
+    animation: llama-pinned-alert 1.2s ease-in-out infinite;
+}
+.chat-pinned-tabs.has-mention {
+    border: 1px solid rgba(242,198,92,.65);
+    border-radius: 9px;
+    padding: 5px;
+    background: rgba(242,198,92,.08);
+    box-shadow: 0 0 16px rgba(242,198,92,.15);
+}
+.pinned-tab.has-mention {
+    border-color: #f2c65c !important;
+    background: rgba(242,198,92,.18) !important;
+    color: #ffe7a6 !important;
+    box-shadow: 0 0 0 1px rgba(242,198,92,.28), 0 0 14px rgba(242,198,92,.22);
+}
+.chat-message-mentioned {
+    border-color: rgba(242,198,92,.95) !important;
+    background: rgba(242,198,92,.10) !important;
+    box-shadow: 0 0 0 2px rgba(242,198,92,.18);
+}
+@keyframes llama-pinned-alert { 50% { filter: brightness(1.4); } }
+
+/* OBS-only message lifecycle: dashboard history is never faded. */
+.chat-overlay-body .chat-message { opacity: 1; transition: opacity 6s linear; }
+.chat-overlay-body .chat-message.chat-overlay-message-fading { opacity: 0; }

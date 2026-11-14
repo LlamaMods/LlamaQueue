@@ -12,7 +12,7 @@ oauth.register(
     authorize_url="https://id.twitch.tv/oauth2/authorize",
     api_base_url="https://api.twitch.tv/helix/",
     client_kwargs={
-        "scope": "user:read:email",
+        "scope": "user:read:email user:read:chat user:write:chat channel:read:subscriptions bits:read",
         "token_endpoint_auth_method": "client_secret_post",
     },
 )

@@ -6,7 +6,7 @@
     const empty = document.getElementById('chat-empty');
     const seen = new Set();
     const messageNodes = new Map();
-    const defaults = {theme:'transparent',fontSize:16,fontFamily:'Arial, sans-serif',backgroundColor:'#111820',backgroundOpacity:78,textColor:'#f3f5f7',usernameColor:'#ffffff',twitchColor:'#9146ff',youtubeColor:'#e62117',showPlatform:true,showTimestamp:true,showUsername:true,showBadges:true,maxMessages:30,messageSpacing:7,messageRadius:8};
+    const defaults = {theme:'transparent',fontSize:16,fontFamily:'Arial, sans-serif',backgroundColor:'#111820',backgroundOpacity:78,textColor:'#f3f5f7',usernameColor:'#ffffff',twitchColor:'#9146ff',youtubeColor:'#e62117',showPlatform:true,showTimestamp:true,showUsername:true,showBadges:true,messageSpacing:7,messageRadius:8};
     let appearance = {...defaults};
     let activeView = 'all';
     let sendTarget = 'all';
@@ -15,8 +15,22 @@
     const commonBots = {nightbot:/^nightbot$/i,streamelements:/^streamelements?$/i,streamerbot:/^streamer[. _-]?bot$/i,moobot:/^moobot$/i,fossabot:/^fossabot$/i,wizebot:/^wizebot$/i,botrix:/^botrix$/i,sery_bot:/^sery_bot$/i};
     function selectedBotFilters() { try { const value = JSON.parse(localStorage.getItem('llamaqueue-bot-filters') || '[]'); return Array.isArray(value) ? value : []; } catch (_) { return []; } }
     function isFilteredBot(username) { const name = String(username || '').trim(); return selectedBotFilters().some(key => commonBots[key]?.test(name)); }
-    const creatorName = (document.getElementById('llama-chat-page')?.dataset.creatorName || '').trim();
-    const mentionPattern = creatorName ? new RegExp('(^|\\s)@?' + creatorName.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&') + '(?=$|[\\s.,!?])', 'i') : null;
+    const chatRoot = document.getElementById('llama-chat-page');
+    const creatorAliases = {
+        default: (chatRoot?.dataset.creatorName || '').trim(),
+        twitch: (chatRoot?.dataset.twitchCreator || chatRoot?.dataset.twitchLogin || chatRoot?.dataset.creatorName || '').trim(),
+        youtube: (chatRoot?.dataset.youtubeCreator || chatRoot?.dataset.youtubeName || chatRoot?.dataset.creatorName || '').trim()
+    };
+    function mentionsCreator(message) {
+        const raw = String(message?.text || '').replace(/[\u200B-\u200D\uFEFF]/g, ' ');
+        const aliases = [...new Set([creatorAliases[String(message?.platform || '').toLowerCase()], creatorAliases.default].filter(Boolean))];
+        return aliases.some(alias => {
+            const name = alias.replace(/^@+/, '').trim();
+            if (!name) return false;
+            const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            return new RegExp('(^|[^a-z0-9_])@?' + escaped + '(?=$|[^a-z0-9_])', 'i').test(raw);
+        });
+    }
     const focusButton = document.getElementById('chat-focus-toggle');
     async function enterChatFocus() {
         document.body.classList.add('chat-focus-mode');
@@ -111,6 +125,9 @@
         const host = document.getElementById('pinned-chatter-tabs');
         if (!host) return;
         host.replaceChildren();
+        const hasMention = pinned.some(person => person.mentioned);
+        host.classList.toggle('has-mention', hasMention);
+        document.querySelector('.chat-pinned-label')?.classList.toggle('has-mention', hasMention);
         if (!pinned.length) {
             const hint = document.createElement('span'); hint.className = 'chat-pinned-empty'; hint.textContent = 'Pin a chatter from any message'; host.append(hint); return;
         }
@@ -146,7 +163,7 @@
             if (activeView.startsWith('pinned:')) visible = row.dataset.userKey === activeView.slice(7);
             row.hidden = !visible || isFilteredBot(row.dataset.username);
         });
-        if (count) count.textContent = `${list.querySelectorAll('.chat-message:not([hidden])').length} visible · ${total} received`;
+        if (count) count.textContent = `${list.querySelectorAll('.chat-message:not([hidden])').length} visible · ${total} retained this session`;
     }
     function setSendTarget(target) {
         sendTarget = target;
@@ -167,6 +184,7 @@
 
     function addMessage(message) {
         if (!message || !message.text) return;
+        const wasAtBottom = (list.scrollHeight - list.scrollTop - list.clientHeight) < 80;
         const isBot = Object.values(commonBots).some(pattern => pattern.test(String(message.username || '').trim()));
         if (isFilteredBot(message.username)) return;
         const id = String(message.id || `${message.username}:${message.timestamp}:${message.text}`);
@@ -187,7 +205,34 @@
         if (message.moderator || message.owner || message.broadcaster) { const role = document.createElement('span'); role.className = 'chat-role-icon' + (message.owner || message.broadcaster ? ' lead' : ''); role.textContent = message.owner || message.broadcaster ? '★' : '◆'; role.title = message.owner || message.broadcaster ? 'Channel owner / lead' : 'Moderator'; role.setAttribute('aria-label', role.title); username.append(role); }
         const time = document.createElement('span'); time.className = 'chat-message-time';
         const date = new Date(message.timestamp || Date.now()); time.textContent = Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
-        const text = document.createElement('div'); text.className = 'chat-message-text'; text.textContent = message.text;
+        const text = document.createElement('div'); text.className = 'chat-message-text';
+        const segments = Array.isArray(message.segments) ? message.segments : null;
+        if (segments && segments.length) {
+            segments.forEach(segment => {
+                if (segment.type === 'emote' && /^https:\/\//i.test(String(segment.url || ''))) {
+                    const emote = document.createElement('img');
+                    emote.className = 'chat-inline-emote';
+                    emote.src = segment.url;
+                    emote.alt = segment.text || 'Twitch emote';
+                    emote.title = segment.text || 'Emote';
+                    emote.loading = 'lazy';
+                    text.append(emote);
+                } else {
+                    text.append(document.createTextNode(segment.text || ''));
+                }
+            });
+        } else {
+            text.textContent = message.text || '';
+        }
+        if (message.event) row.classList.add('chat-event-message', `chat-event-${String(message.event_type || 'community').replace(/[^a-z0-9_-]/gi,'')}`);
+        if (message.event_title) {
+            const eventTitle = document.createElement('div'); eventTitle.className = 'chat-event-title'; eventTitle.textContent = message.event_title;
+            content.append(eventTitle);
+        }
+        if (message.event_detail) {
+            const eventDetail = document.createElement('div'); eventDetail.className = 'chat-event-detail'; eventDetail.textContent = message.event_detail;
+            content.append(eventDetail);
+        }
         meta.append(username);
         if (appearance.showBadges) {
             if (message.subscription_badge) {
@@ -202,7 +247,14 @@
                 tenureTag.textContent = String(message.tenure_badge).slice(0, 8);
                 meta.append(tenureTag);
             }
-            (message.badge_icons || []).slice(0, 6).forEach((src, index) => { if (!/^https:\/\//i.test(src)) return; const icon = document.createElement('img'); icon.className='chat-platform-badge-icon'; icon.src=src; icon.alt='Twitch badge'; icon.title='Twitch badge'; icon.loading='lazy'; meta.append(icon); });
+            const badgeItems = Array.isArray(message.badge_items) ? message.badge_items : (message.badge_icons || []).map(url => ({url, title: 'Twitch badge'}));
+            badgeItems.slice(0, 8).forEach(item => {
+                const src = typeof item === 'string' ? item : item?.url;
+                if (!/^https:\/\//i.test(String(src || ''))) return;
+                const icon = document.createElement('img'); icon.className='chat-platform-badge-icon'; icon.src=src;
+                icon.alt=(typeof item === 'object' && item.title) || 'Platform badge';
+                icon.title=icon.alt; icon.loading='lazy'; meta.append(icon);
+            });
             const labels = [...(message.badges || [])].filter(label => !/^moderator$/i.test(String(label)));
             if (message.member && !message.subscription_badge && !labels.includes('Member')) labels.push('Member');
             if (message.verified && !labels.includes('Verified')) labels.push('Verified');
@@ -215,13 +267,13 @@
         const pin = document.createElement('button'); pin.type = 'button'; pin.className = 'chat-message-action chat-pin-chatter';
         const person = {key: row.dataset.userKey, platform: message.platform, userId: message.user_id || null, username: message.username || 'Viewer'};
         const isModerator = !!(message.moderator || message.owner || message.broadcaster);
-        const mentionsCreator = !!(mentionPattern && mentionPattern.test(String(message.text)));
-        if (isModerator && mentionsCreator) {
+        const creatorMention = isModerator && mentionsCreator(message);
+        if (creatorMention) {
             row.classList.add('chat-message-mentioned');
             const existing = pinned.find(item => item.key === person.key);
             if (existing) existing.mentioned = true;
             else { if (pinned.length >= 20) pinned.shift(); pinned.push({...person, mentioned:true, autoPinned:true}); }
-            savePinned(); renderPinnedTabs();
+            savePinned(); renderPinnedTabs(); refreshPinButtons();
         }
         const isPinned = () => pinned.some(item => item.key === person.key);
         pin.textContent = isPinned() ? 'Unpin' : 'Pin chatter';
@@ -232,7 +284,7 @@
             savePinned(); renderPinnedTabs(); refreshPinButtons();
         });
         actions.append(pin);
-        if (message.user_id && !String(message.id || '').startsWith('preview-') && !message.broadcaster && !message.owner) {
+        if (!message.event && message.user_id && !String(message.id || '').startsWith('preview-') && !message.broadcaster && !message.owner) {
             const timeout = document.createElement('button'); timeout.type='button'; timeout.className='chat-message-action'; timeout.textContent='Timeout 10m';
             timeout.addEventListener('click', async () => {
                 if (!window.confirm(`Timeout ${message.username || 'this chatter'} for 10 minutes on ${message.platform}?`)) return;
@@ -255,7 +307,7 @@
             });
             actions.append(timeout, ban);
         }
-        if (message.id && !String(message.id).startsWith('preview-')) {
+        if (!message.event && message.id && !String(message.id).startsWith('preview-')) {
             const del = document.createElement('button'); del.type = 'button'; del.className = 'chat-message-action chat-delete-message'; del.textContent = 'Delete';
             del.addEventListener('click', async () => {
                 del.disabled = true; del.textContent = 'Deleting…';
@@ -269,13 +321,11 @@
             actions.append(del);
         }
         content.append(actions); row.append(badge, content); list.append(row); messageNodes.set(key, row);
+        // Dashboard/Omni intentionally has no rolling message cap. Keep older
+        // messages in the scrollback for the full active stream session.
         if (message.deleted) markDeleted(message.platform, id, message.deleted_by);
-        while (list.querySelectorAll('.chat-message').length > appearance.maxMessages) {
-            const oldest = list.querySelector('.chat-message');
-            if (oldest) { messageNodes.delete(`${oldest.dataset.platform}:${oldest.dataset.messageId}`); oldest.remove(); }
-        }
         total += 1; updateVisibility();
-        if (activeView === 'all' || row.dataset.platform === activeView || activeView === `pinned:${row.dataset.userKey}`) list.scrollTop = list.scrollHeight;
+        if (wasAtBottom && (activeView === 'all' || row.dataset.platform === activeView || activeView === `pinned:${row.dataset.userKey}`)) list.scrollTop = list.scrollHeight;
     }
 
     renderPinnedTabs(); bindAppearanceControls();
@@ -307,7 +357,13 @@
             {id:`preview-t1-${run}`,platform:'twitch',user_id:'preview-t1',username:'TrailBoss42',text:'Howdy folks! Chat is looking mighty fine.',timestamp:new Date().toISOString(),subscription_badge:'T1',tenure_badge:'1Y',badges:[],moderator:false},
             {id:`preview-y1-${run}`,platform:'youtube',user_id:'preview-y1',username:'Llama Wrangler',text:'Testing the unified chat overlay. Can you see this?',timestamp:new Date().toISOString(),verified:true,member:true,subscription_badge:'MEM',tenure_badge:'6M',badges:['Verified']},
             {id:`preview-t2-${run}`,platform:'twitch',user_id:'preview-t2',username:'PixelPioneer',text:'The colors and spacing are looking good!',timestamp:new Date().toISOString(),subscription_badge:'T3',tenure_badge:'2Y',moderator:true,badges:['moderator']},
-            {id:`preview-y2-${run}`,platform:'youtube',user_id:'preview-y2',username:'CraftyViewer',text:'Transparent background is ready for OBS.',timestamp:new Date().toISOString()}
+            {id:`preview-y2-${run}`,platform:'youtube',user_id:'preview-y2',username:'CraftyViewer',text:'Transparent background is ready for OBS.',timestamp:new Date().toISOString()},
+            {id:`preview-emote-${run}`,platform:'twitch',user_id:'preview-emote',username:'EmoteFan',text:'Kappa',segments:[{type:'text',text:'That emote though '},{type:'emote',text:'Kappa',url:'https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/2.0'}],timestamp:new Date().toISOString()},
+            {id:`preview-cheer-${run}`,platform:'twitch',user_id:'preview-cheer',username:'BitsFan',text:'PogChamp!',timestamp:new Date().toISOString(),event:true,event_type:'cheer',event_title:'CHEER',event_detail:'1,000 Bits',bits:1000},
+            {id:`preview-gift-${run}`,platform:'twitch',user_id:'preview-gift',username:'GenerousViewer',text:'Gifted 5 subscriptions',timestamp:new Date().toISOString(),event:true,event_type:'community_sub_gift',event_title:'COMMUNITY GIFT SUBS',event_detail:'5 gifted subscriptions'},
+            {id:`preview-member-${run}`,platform:'youtube',user_id:'preview-member',username:'MemberFan',text:'Welcome to the membership!',timestamp:new Date().toISOString(),event:true,event_type:'new_member',event_title:'NEW CHANNEL MEMBER',event_detail:'Joined the channel',member:true},
+            {id:`preview-super-${run}`,platform:'youtube',user_id:'preview-super',username:'SuperFan',text:'Keep up the great work!',timestamp:new Date().toISOString(),event:true,event_type:'super_chat',event_title:'SUPER CHAT',event_detail:'$10.00 USD'},
+            {id:`preview-modmention-${run}`,platform:'twitch',user_id:'preview-modmention',username:'LeadModerator',text:'@' + (creatorAliases.default || 'Streamer') + ' — quick heads-up!',timestamp:new Date().toISOString(),moderator:true,badges:['Moderator']}
         ].forEach(addMessage);
         if (count) count.textContent = 'Sample preview · not live messages';
     });

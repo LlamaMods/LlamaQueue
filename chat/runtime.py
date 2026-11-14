@@ -32,7 +32,10 @@ class ChatHub:
         self._lock = asyncio.Lock()
 
     async def publish(self, user_id: int, message: dict[str, Any]):
-        history = self.messages.setdefault(user_id, deque(maxlen=300))
+        # Keep every message for this user's active server session. Do not use
+        # deque(maxlen=...) here: dashboard/Omni history must not roll off at 30,
+        # 60, or any other arbitrary message count.
+        history = self.messages.setdefault(user_id, deque())
         history.append(message)
         async with self._lock:
             stale = []
@@ -207,6 +210,77 @@ class ChatHub:
             return None
 
     @staticmethod
+    def _twitch_fragments(message):
+        """Convert EventSub message fragments to safe, renderable text/emote segments."""
+        segments = []
+        bits = 0
+        for fragment in message.get("fragments", []) or []:
+            kind = fragment.get("type")
+            value = fragment.get("text", "") or ""
+            if kind == "emote":
+                emote_id = (fragment.get("emote") or {}).get("id")
+                if emote_id:
+                    segments.append({
+                        "type": "emote",
+                        "text": value,
+                        "url": f"https://static-cdn.jtvnw.net/emoticons/v2/{emote_id}/default/dark/2.0",
+                    })
+                elif value:
+                    segments.append({"type": "text", "text": value})
+            elif kind == "cheermote":
+                cheer = fragment.get("cheermote") or {}
+                try:
+                    bits += int(cheer.get("bits", 0))
+                except (TypeError, ValueError):
+                    pass
+                if value:
+                    segments.append({"type": "text", "text": value})
+            elif value:
+                segments.append({"type": "text", "text": value})
+        return segments, bits
+
+    async def _refresh_twitch_token_if_needed(self, user_id, token, refresh_token, expires_at, client_id, client_secret):
+        from datetime import timedelta
+        if not (expires_at and refresh_token and client_secret):
+            return token, refresh_token, expires_at
+        if datetime.utcnow() < (expires_at - timedelta(minutes=10)):
+            return token, refresh_token, expires_at
+        response = await asyncio.to_thread(
+            requests.post, "https://id.twitch.tv/oauth2/token",
+            data={"grant_type": "refresh_token", "refresh_token": refresh_token,
+                  "client_id": client_id, "client_secret": client_secret},
+            timeout=20,
+        )
+        response.raise_for_status()
+        data = response.json()
+        token = data["access_token"]
+        refresh_token = data.get("refresh_token", refresh_token)
+        expires_at = datetime.utcnow() + timedelta(seconds=int(data.get("expires_in", 14400)))
+        await self._save_tokens(user_id, "twitch", token, refresh_token, expires_at)
+        logger.info("Refreshed Twitch chat token before expiry for user %s", user_id)
+        return token, refresh_token, expires_at
+
+    async def _subscribe_twitch_eventsub(self, headers, session_id, broadcaster_id):
+        subscriptions = [
+            ("channel.chat.message", {"broadcaster_user_id": broadcaster_id, "user_id": broadcaster_id}),
+            ("channel.chat.message_delete", {"broadcaster_user_id": broadcaster_id, "user_id": broadcaster_id}),
+            ("channel.chat.notification", {"broadcaster_user_id": broadcaster_id, "user_id": broadcaster_id}),
+            ("channel.cheer", {"broadcaster_user_id": broadcaster_id}),
+        ]
+        for event_type, condition in subscriptions:
+            body = {
+                "type": event_type, "version": "1", "condition": condition,
+                "transport": {"method": "websocket", "session_id": session_id},
+            }
+            response = await asyncio.to_thread(
+                requests.post, "https://api.twitch.tv/helix/eventsub/subscriptions",
+                headers=headers, json=body, timeout=20
+            )
+            if response.status_code not in (200, 202, 409):
+                logger.warning("Twitch EventSub %s subscription unavailable (%s): %s",
+                               event_type, response.status_code, response.text[:250])
+
+    @staticmethod
     def _tenure_badge(months):
         try:
             months = int(months)
@@ -248,24 +322,9 @@ class ChatHub:
         await self.set_status(user_id, "twitch", "Connecting…")
         while True:
             try:
-                if expires_at and datetime.utcnow() >= (expires_at - timedelta(minutes=5)) and refresh_token and client_secret:
-                    refreshed = await asyncio.to_thread(
-                        requests.post,
-                        "https://id.twitch.tv/oauth2/token",
-                        data={
-                            "grant_type": "refresh_token",
-                            "refresh_token": refresh_token,
-                            "client_id": client_id,
-                            "client_secret": client_secret,
-                        },
-                        timeout=20,
-                    )
-                    refreshed.raise_for_status()
-                    token_data = refreshed.json()
-                    token = token_data["access_token"]
-                    refresh_token = token_data.get("refresh_token", refresh_token)
-                    expires_at = datetime.utcnow() + timedelta(seconds=int(token_data.get("expires_in", 14400)))
-                    await self._save_tokens(user_id, "twitch", token, refresh_token, expires_at)
+                token, refresh_token, expires_at = await self._refresh_twitch_token_if_needed(
+                    user_id, token, refresh_token, expires_at, client_id, client_secret
+                )
 
                 async with websockets.connect(base_url, ping_interval=30, close_timeout=5, max_size=2**20) as ws:
                     first = json.loads(await ws.recv())
@@ -278,40 +337,32 @@ class ChatHub:
                     # Only create a subscription after a brand-new session welcome.
                     if not reconnecting:
                         headers = {"Client-ID": client_id, "Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-                        body = {
-                            "type": "channel.chat.message",
-                            "version": "1",
-                            "condition": {"broadcaster_user_id": config["platform_user_id"], "user_id": config["platform_user_id"]},
-                            "transport": {"method": "websocket", "session_id": session_id},
-                        }
-                        response = await asyncio.to_thread(requests.post, "https://api.twitch.tv/helix/eventsub/subscriptions", headers=headers, json=body, timeout=20)
-                        if response.status_code not in (200, 202, 409):
-                            raise RuntimeError(f"Twitch EventSub subscription failed ({response.status_code}): {response.text[:300]}")
-                        # Message deletion events keep the dashboard in sync with moderator actions.
-                        delete_body = {
-                            "type": "channel.chat.message_delete", "version": "1",
-                            "condition": {"broadcaster_user_id": config["platform_user_id"], "user_id": config["platform_user_id"]},
-                            "transport": {"method": "websocket", "session_id": session_id},
-                        }
-                        delete_response = await asyncio.to_thread(requests.post, "https://api.twitch.tv/helix/eventsub/subscriptions", headers=headers, json=delete_body, timeout=20)
-                        if delete_response.status_code not in (200, 202, 409):
-                            logger.warning("Twitch deletion events unavailable for user %s: %s", user_id, delete_response.text[:250])
+                        await self._subscribe_twitch_eventsub(
+                            headers, session_id, str(config["platform_user_id"])
+                        )
                     reconnecting = False
                     retry_delay = 5
                     await self.set_status(user_id, "twitch", "Connected")
                     badge_cache_key = str(config["platform_user_id"])
                     if badge_cache_key not in self.twitch_badge_cache:
                         try:
-                            badge_response = await asyncio.to_thread(
-                                requests.get, "https://api.twitch.tv/helix/chat/badges",
-                                headers={"Client-ID": client_id, "Authorization": f"Bearer {token}"},
-                                params={"broadcaster_id": badge_cache_key}, timeout=15
-                            )
-                            badge_response.raise_for_status()
+                            badge_headers = {"Client-ID": client_id, "Authorization": f"Bearer {token}"}
                             badge_map = {}
-                            for badge_set in badge_response.json().get("data", []):
-                                for version in badge_set.get("versions", []):
-                                    badge_map[f"{badge_set.get('set_id')}:{version.get('id')}"] = version.get("image_url_2x") or version.get("image_url_1x")
+                            for badge_url, badge_params in (
+                                ("https://api.twitch.tv/helix/chat/badges/global", {}),
+                                ("https://api.twitch.tv/helix/chat/badges", {"broadcaster_id": badge_cache_key}),
+                            ):
+                                badge_response = await asyncio.to_thread(
+                                    requests.get, badge_url, headers=badge_headers,
+                                    params=badge_params, timeout=15
+                                )
+                                badge_response.raise_for_status()
+                                for badge_set in badge_response.json().get("data", []):
+                                    for version in badge_set.get("versions", []):
+                                        badge_map[f"{badge_set.get('set_id')}:{version.get('id')}"] = {
+                                            "url": version.get("image_url_2x") or version.get("image_url_1x"),
+                                            "title": f"{badge_set.get('set_id')} {version.get('title') or version.get('id')}".strip(),
+                                        }
                             self.twitch_badge_cache[badge_cache_key] = badge_map
                         except Exception:
                             logger.info("Twitch badge artwork unavailable for user %s", user_id)
@@ -319,6 +370,9 @@ class ChatHub:
 
                     while True:
                         raw = await ws.recv()
+                        token, refresh_token, expires_at = await self._refresh_twitch_token_if_needed(
+                            user_id, token, refresh_token, expires_at, client_id, client_secret
+                        )
                         packet = json.loads(raw)
                         kind = packet.get("metadata", {}).get("message_type")
                         if kind == "session_keepalive":
@@ -332,11 +386,95 @@ class ChatHub:
                         if kind != "notification":
                             continue
                         event = packet.get("payload", {}).get("event", {})
-                        if packet.get("metadata", {}).get("subscription_type") == "channel.chat.message_delete":
+                        subscription_type = packet.get("metadata", {}).get("subscription_type")
+                        if subscription_type == "channel.chat.message_delete":
                             await self.mark_deleted(user_id, "twitch", event.get("message_id"), event.get("moderator_user_name"))
+                            continue
+                        if subscription_type == "channel.chat.notification":
+                            notice = event.get("notice_type", "community_event")
+                            notice_map = {
+                                "sub": ("NEW SUBSCRIPTION", "sub"),
+                                "resub": ("RESUBSCRIPTION", "resub"),
+                                "sub_gift": ("GIFTED SUBSCRIPTION", "sub_gift"),
+                                "community_sub_gift": ("COMMUNITY GIFT SUBS", "community_sub_gift"),
+                                "gift_paid_upgrade": ("GIFT SUB UPGRADE", "gift_upgrade"),
+                                "prime_paid_upgrade": ("PRIME UPGRADE", "prime_upgrade"),
+                                "raid": ("RAID", "raid"),
+                                "bits_badge_tier": ("BITS BADGE MILESTONE", "bits"),
+                                "announcement": ("ANNOUNCEMENT", "announcement"),
+                                "charity_donation": ("CHARITY DONATION", "charity"),
+                            }
+                            title, event_kind = notice_map.get(notice, ("TWITCH COMMUNITY EVENT", notice))
+                            nested_key = {
+                                "sub": "sub", "resub": "resub", "sub_gift": "sub_gift",
+                                "community_sub_gift": "community_sub_gift", "raid": "raid",
+                                "charity_donation": "charity_donation",
+                            }.get(notice)
+                            detail_source = event.get(nested_key, {}) if nested_key else {}
+                            if not isinstance(detail_source, dict):
+                                detail_source = {}
+                            detail_source = {**event, **detail_source}
+                            chatter_name = event.get("chatter_user_name") or event.get("user_name") or "Anonymous"
+                            recipient = detail_source.get("recipient_user_name") or detail_source.get("recipient_user_login")
+                            tier_value = str(detail_source.get("sub_tier") or detail_source.get("tier") or "")
+                            tier_label = {"1000": "Tier 1", "2000": "Tier 2", "3000": "Tier 3"}.get(tier_value, f"Tier {tier_value}" if tier_value else "")
+                            details = []
+                            if notice == "sub_gift":
+                                details.append(f"Gifted {tier_label + ' ' if tier_label else ''}subscription" + (f" to {recipient}" if recipient else ""))
+                            elif notice == "community_sub_gift":
+                                count = int(detail_source.get("total") or 0)
+                                details.append(f"Gifted {count} subscriptions to the community" if count else "Gifted community subscriptions")
+                                cumulative = detail_source.get("cumulative_total")
+                                if cumulative:
+                                    details.append(f"{cumulative} total community gifts")
+                            elif notice in {"sub", "resub"}:
+                                months = detail_source.get("cumulative_months") or detail_source.get("duration_months")
+                                details.append("Subscribed" if notice == "sub" else "Resubscribed")
+                                if months:
+                                    details.append(f"{months} months")
+                                if tier_label:
+                                    details.append(tier_label)
+                            elif notice == "raid":
+                                viewers = detail_source.get("viewer_count")
+                                details.append(f"Raided with {viewers} viewers" if viewers is not None else "Raided the channel")
+                            elif notice == "charity_donation":
+                                amount = detail_source.get("amount") or detail_source.get("amount_value")
+                                currency = detail_source.get("currency") or detail_source.get("currency_code")
+                                details.append(f"Donated {amount} {currency or ''}".strip() if amount else "Made a charity donation")
+                            else:
+                                for key in ("cumulative_months", "streak_months", "duration_months", "total", "recipient_user_name", "bits", "viewer_count"):
+                                    value = detail_source.get(key)
+                                    if value not in (None, "", 0):
+                                        details.append(f"{key.replace('_', ' ').title()}: {value}")
+                                if tier_label:
+                                    details.append(tier_label)
+                            detail_text = " · ".join(details) or title
+                            await self.publish_system(user_id, {
+                                "id": packet.get("metadata", {}).get("message_id") or f"twitch-event-{datetime.now(timezone.utc).timestamp()}",
+                                "platform": "twitch", "username": chatter_name,
+                                "user_id": event.get("chatter_user_id") or event.get("user_id"),
+                                "text": detail_text,
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "event": True, "event_type": event_kind, "event_title": title,
+                                "event_detail": detail_text,
+                                "moderator": False, "badges": [], "badge_items": [],
+                            })
+                            continue
+                        if subscription_type == "channel.cheer":
+                            bits = int(event.get("bits", 0) or 0)
+                            await self.publish_system(user_id, {
+                                "id": packet.get("metadata", {}).get("message_id") or f"twitch-cheer-{datetime.now(timezone.utc).timestamp()}",
+                                "platform": "twitch", "username": event.get("user_name") or "Anonymous",
+                                "user_id": event.get("user_id"), "text": event.get("message") or f"Cheered {bits} Bits",
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "event": True, "event_type": "cheer", "event_title": "CHEER",
+                                "event_detail": f"{bits:,} Bits", "bits": bits,
+                                "badges": [], "badge_items": [],
+                            })
                             continue
                         message = event.get("message", {})
                         text = message.get("text", "")
+                        segments, fragment_bits = self._twitch_fragments(message)
                         if not text:
                             continue
                         badge_rows = event.get("badges", [])
@@ -370,7 +508,14 @@ class ChatHub:
                             "timestamp": message.get("sent_at") or datetime.now(timezone.utc).isoformat(),
                             "color": event.get("color"),
                             "badges": [f"{badge.get('set_id')} {badge.get('id')}".strip() for badge in badge_rows if badge.get("set_id") != "subscriber"],
-                            "badge_icons": [self.twitch_badge_cache.get(str(config["platform_user_id"]), {}).get(f"{badge.get('set_id')}:{badge.get('id')}") for badge in badge_rows if self.twitch_badge_cache.get(str(config["platform_user_id"]), {}).get(f"{badge.get('set_id')}:{badge.get('id')}")],
+                            "badge_icons": [self.twitch_badge_cache.get(str(config["platform_user_id"]), {}).get(f"{badge.get('set_id')}:{badge.get('id')}", {}).get("url") for badge in badge_rows if self.twitch_badge_cache.get(str(config["platform_user_id"]), {}).get(f"{badge.get('set_id')}:{badge.get('id')}", {}).get("url")],
+                            "badge_items": [self.twitch_badge_cache.get(str(config["platform_user_id"]), {}).get(f"{badge.get('set_id')}:{badge.get('id')}") for badge in badge_rows if self.twitch_badge_cache.get(str(config["platform_user_id"]), {}).get(f"{badge.get('set_id')}:{badge.get('id')}")],
+                            "segments": segments,
+                            "event": bool(fragment_bits),
+                            "event_type": "cheer" if fragment_bits else None,
+                            "event_title": "CHEER" if fragment_bits else None,
+                            "event_detail": f"{fragment_bits:,} Bits" if fragment_bits else None,
+                            "bits": fragment_bits or None,
                             "subscription_badge": tier_labels.get(identity.get("subscription_key")) or ("SUB" if subscriber_badge else None),
                             "tenure_badge": self._tenure_badge(identity.get("tenure_months")),
                             "moderator": "moderator" in badge_sets,
@@ -479,13 +624,47 @@ class ChatHub:
                                     "youtube_member" if is_member else None, milestone_months
                                 )
                                 text = ""
+                                event_title = None
+                                event_detail = ""
+                                event_type = None
                                 if snippet.HasField("text_message_details"):
                                     text = snippet.text_message_details.message_text
                                 elif milestone_comment:
                                     text = milestone_comment
+                                    event_title = "Membership milestone"
+                                    event_type = "membership_milestone"
+                                    event_detail = f"{milestone_months or ''} months"
                                 elif snippet.HasField("display_message"):
                                     text = snippet.display_message
-                                if not text:
+                                if snippet.HasField("super_chat_details"):
+                                    details = snippet.super_chat_details
+                                    amount = details.amount_display_string or (
+                                        f"{details.currency} {int(details.amount_micros or 0) / 1000000:.2f}".strip()
+                                    )
+                                    event_title = "SUPER CHAT"
+                                    event_type = "super_chat"
+                                    event_detail = amount
+                                    text = details.user_comment or text or f"Sent a Super Chat: {amount}"
+                                if snippet.HasField("membership_gifting_details"):
+                                    details = snippet.membership_gifting_details
+                                    count = int(details.gift_memberships_count or 0)
+                                    event_title = "Gifted memberships"
+                                    event_type = "membership_gift"
+                                    event_detail = f"{count} memberships · {details.gift_memberships_level_name}".strip(" ·")
+                                    text = text or event_detail
+                                if snippet.HasField("gift_membership_received_details"):
+                                    details = snippet.gift_membership_received_details
+                                    event_title = "Gift membership received"
+                                    event_type = "membership_gift_received"
+                                    event_detail = details.member_level_name or "YouTube membership"
+                                    if details.gifter_channel_id:
+                                        event_detail = f"Gift from channel {details.gifter_channel_id} · {event_detail}"
+                                    text = text or f"Received a gifted membership · {event_detail}"
+                                if new_member and not event_title:
+                                    event_title = "New channel member"
+                                    event_type = "new_member"
+                                    text = text or "Joined as a channel member"
+                                if not text and not event_title:
                                     continue
                                 await self.publish(user_id, {
                                     "id": item.id,
@@ -502,6 +681,10 @@ class ChatHub:
                                     "subscription_badge": "MEM" if is_member else None,
                                     "tenure_badge": self._tenure_badge(identity.get("tenure_months")),
                                     "badges": (["Moderator"] if author.is_chat_moderator else []) + (["Verified"] if author.is_verified else []) + (["Owner"] if author.is_chat_owner else []),
+                                    "event": bool(event_title),
+                                    "event_type": event_type,
+                                    "event_title": event_title,
+                                    "event_detail": event_detail,
                                 })
                     except grpc.aio.AioRpcError as stream_error:
                         logger.info("YouTube live chat stream ended for user %s: %s", user_id, stream_error)

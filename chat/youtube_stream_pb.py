@@ -51,6 +51,22 @@ _message("LiveChatMemberMilestoneChatDetails", [
     ("member_month", 2, _uint32, _optional, None),
     ("user_comment", 3, _string, _optional, None),
 ])
+
+_message("LiveChatSuperChatDetails", [
+    ("amount_micros", 1, _string, _optional, None),
+    ("currency", 2, _string, _optional, None),
+    ("amount_display_string", 3, _string, _optional, None),
+    ("user_comment", 4, _string, _optional, None),
+])
+_message("LiveChatMembershipGiftingDetails", [
+    ("gift_memberships_count", 1, _uint32, _optional, None),
+    ("gift_memberships_level_name", 2, _string, _optional, None),
+])
+_message("LiveChatGiftMembershipReceivedDetails", [
+    ("member_level_name", 1, _string, _optional, None),
+    ("gifter_channel_id", 2, _string, _optional, None),
+    ("associated_membership_gifting_message_id", 3, _string, _optional, None),
+])
 _enum = _file.enum_type.add()
 _enum.name = "LiveChatMessageSnippetType"
 for enum_name, enum_number in [("INVALID_TYPE", 0), ("TEXT_MESSAGE_EVENT", 1), ("TOMBSTONE", 2), ("FAN_FUNDING_EVENT", 3), ("CHAT_ENDED_EVENT", 4), ("SPONSOR_ONLY_MODE_STARTED_EVENT", 5), ("SPONSOR_ONLY_MODE_ENDED_EVENT", 6), ("NEW_SPONSOR_EVENT", 7), ("MEMBER_MILESTONE_CHAT_EVENT", 17), ("MEMBERSHIP_GIFTING_EVENT", 18), ("GIFT_MEMBERSHIP_RECEIVED_EVENT", 19)]:
@@ -66,6 +82,9 @@ _message("LiveChatMessageSnippet", [
     ("text_message_details", 19, _message_type, _optional, ".youtube.api.v3.LiveChatTextMessageDetails"),
     ("new_sponsor_details", 29, _message_type, _optional, ".youtube.api.v3.LiveChatNewSponsorDetails"),
     ("member_milestone_chat_details", 30, _message_type, _optional, ".youtube.api.v3.LiveChatMemberMilestoneChatDetails"),
+    ("super_chat_details", 27, _message_type, _optional, ".youtube.api.v3.LiveChatSuperChatDetails"),
+    ("membership_gifting_details", 35, _message_type, _optional, ".youtube.api.v3.LiveChatMembershipGiftingDetails"),
+    ("gift_membership_received_details", 36, _message_type, _optional, ".youtube.api.v3.LiveChatGiftMembershipReceivedDetails"),
 ])
 _message("LiveChatMessageAuthorDetails", [
     ("channel_id", 10101, _string, _optional, None),
