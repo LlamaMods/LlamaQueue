@@ -266,7 +266,7 @@
         const actions = document.createElement('div'); actions.className = 'chat-message-actions';
         const pin = document.createElement('button'); pin.type = 'button'; pin.className = 'chat-message-action chat-pin-chatter';
         const person = {key: row.dataset.userKey, platform: message.platform, userId: message.user_id || null, username: message.username || 'Viewer'};
-        const isModerator = !!(message.moderator || message.owner || message.broadcaster);
+        const isModerator = !!(message.moderator || message.lead_moderator || message.owner || message.broadcaster);
         const creatorMention = isModerator && mentionsCreator(message);
         if (creatorMention) {
             row.classList.add('chat-message-mentioned');

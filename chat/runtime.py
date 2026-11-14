@@ -518,7 +518,8 @@ class ChatHub:
                             "bits": fragment_bits or None,
                             "subscription_badge": tier_labels.get(identity.get("subscription_key")) or ("SUB" if subscriber_badge else None),
                             "tenure_badge": self._tenure_badge(identity.get("tenure_months")),
-                            "moderator": "moderator" in badge_sets,
+                            "moderator": bool({"moderator", "lead_moderator"} & badge_sets),
+                            "lead_moderator": "lead_moderator" in badge_sets,
                             "broadcaster": "broadcaster" in badge_sets,
                             "vip": "vip" in badge_sets,
                         })
