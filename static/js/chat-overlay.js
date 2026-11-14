@@ -2,7 +2,7 @@
     const list = document.getElementById('chat-message-list');
     const token = list?.dataset.overlayToken;
     if (!list || !token) return;
-    const defaults = {theme:'transparent',fontSize:16,fontFamily:'Arial, sans-serif',backgroundColor:'#111820',backgroundOpacity:78,textColor:'#f3f5f7',usernameColor:'#ffffff',twitchColor:'#9146ff',youtubeColor:'#e62117',showPlatform:true,showTimestamp:true,showUsername:true,showBadges:true,messageSpacing:7,messageRadius:8};
+    const defaults = {theme:'transparent',fontSize:16,fontFamily:'Arial, sans-serif',backgroundColor:'#111820',backgroundOpacity:78,textColor:'#f3f5f7',usernameColor:'#ffffff',twitchColor:'#9146ff',youtubeColor:'#e62117',showPlatform:true,showTimestamp:true,showUsername:true,showBadges:true,maxMessages:30,messageSpacing:7,messageRadius:8};
     let appearance = {...defaults};
     try { const node=document.getElementById('chat-appearance-json'); if(node) appearance={...defaults,...JSON.parse(node.textContent)}; } catch (_) {}
     const root=document.documentElement;
@@ -21,11 +21,14 @@
     document.body.classList.toggle('chat-hide-platform',!appearance.showPlatform);
     document.body.classList.toggle('chat-hide-time',!appearance.showTimestamp);
     document.body.classList.toggle('chat-hide-user',!appearance.showUsername);
-    const seen=new Set(); let empty=document.getElementById('chat-empty');
+    const seen=new Set();
+    const OBS_SEEN_LIMIT=600;
+    let empty=document.getElementById('chat-empty');
     function addMessage(message){
         if(!message||!message.text)return;
         const key=`${message.platform}:${message.id||`${message.username}:${message.timestamp}:${message.text}`}`;
         if(seen.has(key))return; seen.add(key);
+        while(seen.size>OBS_SEEN_LIMIT)seen.delete(seen.values().next().value);
         const createdAt = new Date(message.timestamp || Date.now()).getTime();
         const age = Math.max(0, Date.now() - (Number.isFinite(createdAt) ? createdAt : Date.now()));
         const visibleFor = 24000;
@@ -45,6 +48,10 @@
             if(message.tenure_badge){const tenureTag=document.createElement('span');tenureTag.className='chat-user-badge chat-tenure-badge';tenureTag.textContent=String(message.tenure_badge).slice(0,8);meta.append(tenureTag);}
             const labels=[...(message.badges||[])];if(message.verified)labels.push('Verified');if(message.moderator)labels.push('Moderator');labels.slice(0,5).forEach(label=>{const tag=document.createElement('span');tag.className='chat-user-badge';tag.textContent=String(label).replace(/[^a-z0-9 _-]/gi,'').slice(0,24);meta.append(tag);});}
         meta.append(time);content.append(meta,text);row.append(badge,content);list.append(row);
+        // OBS has less vertical room than the dashboard: cap it at eight rows.
+        while(list.querySelectorAll('.chat-message').length>appearance.maxMessages){
+            list.querySelector('.chat-message')?.remove();
+        }
         // OBS-only lifecycle: each message gets its own 24s hold and 6s fade.
         const holdRemaining = Math.max(0, visibleFor - age);
         const fadeRemaining = Math.max(0, fadeFor - Math.max(0, age - visibleFor));

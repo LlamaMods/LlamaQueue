@@ -6,7 +6,8 @@
     const empty = document.getElementById('chat-empty');
     const seen = new Set();
     const messageNodes = new Map();
-    const defaults = {theme:'transparent',fontSize:16,fontFamily:'Arial, sans-serif',backgroundColor:'#111820',backgroundOpacity:78,textColor:'#f3f5f7',usernameColor:'#ffffff',twitchColor:'#9146ff',youtubeColor:'#e62117',showPlatform:true,showTimestamp:true,showUsername:true,showBadges:true,messageSpacing:7,messageRadius:8};
+    const SEEN_LIMIT = 600;
+    const defaults = {theme:'transparent',fontSize:16,fontFamily:'Arial, sans-serif',backgroundColor:'#111820',backgroundOpacity:78,textColor:'#f3f5f7',usernameColor:'#ffffff',twitchColor:'#9146ff',youtubeColor:'#e62117',showPlatform:true,showTimestamp:true,showUsername:true,showBadges:true,maxMessages:30,messageSpacing:7,messageRadius:8};
     let appearance = {...defaults};
     let activeView = 'all';
     let sendTarget = 'all';
@@ -163,7 +164,7 @@
             if (activeView.startsWith('pinned:')) visible = row.dataset.userKey === activeView.slice(7);
             row.hidden = !visible || isFilteredBot(row.dataset.username);
         });
-        if (count) count.textContent = `${list.querySelectorAll('.chat-message:not([hidden])').length} visible · ${total} retained this session`;
+        if (count) count.textContent = `${list.querySelectorAll('.chat-message:not([hidden])').length} visible · ${total} received this session`;
     }
     function setSendTarget(target) {
         sendTarget = target;
@@ -191,6 +192,7 @@
         const key = `${message.platform}:${id}`;
         if (seen.has(key)) return;
         seen.add(key);
+        while (seen.size > SEEN_LIMIT) seen.delete(seen.values().next().value);
         if (empty) empty.remove();
         const row = document.createElement('article');
         row.className = 'chat-message'; row.dataset.platform = message.platform;
@@ -321,8 +323,13 @@
             actions.append(del);
         }
         content.append(actions); row.append(badge, content); list.append(row); messageNodes.set(key, row);
-        // Dashboard/Omni intentionally has no rolling message cap. Keep older
-        // messages in the scrollback for the full active stream session.
+        // Keep the live dashboard/Omni DOM small and predictable during long streams.
+        while (list.querySelectorAll('.chat-message').length > appearance.maxMessages) {
+            const oldest = list.querySelector('.chat-message');
+            if (!oldest) break;
+            messageNodes.delete(`${oldest.dataset.platform}:${oldest.dataset.messageId}`);
+            oldest.remove();
+        }
         if (message.deleted) markDeleted(message.platform, id, message.deleted_by);
         total += 1; updateVisibility();
         if (wasAtBottom && (activeView === 'all' || row.dataset.platform === activeView || activeView === `pinned:${row.dataset.userKey}`)) list.scrollTop = list.scrollHeight;

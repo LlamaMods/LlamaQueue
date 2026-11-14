@@ -30,7 +30,7 @@ DEFAULT_APPEARANCE = {
     "textColor": "#f3f5f7", "usernameColor": "#ffffff",
     "twitchColor": "#9146ff", "youtubeColor": "#e62117",
     "showPlatform": True, "showTimestamp": True, "showUsername": True,
-    "showBadges": True, "maxMessages": 60, "messageSpacing": 7,
+    "showBadges": True, "maxMessages": 30, "messageSpacing": 7,
     "messageRadius": 8,
 }
 
@@ -43,13 +43,15 @@ def _appearance(db: Session, user_id: int) -> dict:
         saved = {}
     result = DEFAULT_APPEARANCE.copy()
     result.update({k: v for k, v in saved.items() if k in DEFAULT_APPEARANCE})
-    # Legacy appearance records could retain the old 30-message setting.
-    # Keep 60 as the minimum dashboard history target; dashboard history itself
-    # is not truncated by this appearance value.
+    # Restore yesterday's adjustable display limit. Alpha forced this to 60;
+    # convert that Alpha-only forced value back to the prior 30-message default.
     try:
-        result["maxMessages"] = max(60, min(5000, int(result.get("maxMessages", 60))))
+        message_limit = int(result.get("maxMessages", 30))
+        if message_limit == 60:
+            message_limit = 30
+        result["maxMessages"] = max(5, min(100, message_limit))
     except (TypeError, ValueError):
-        result["maxMessages"] = 60
+        result["maxMessages"] = 30
     return result
 
 
@@ -212,7 +214,7 @@ async def save_chat_appearance(request: Request):
         clean["theme"] = payload["theme"]
     if payload.get("fontFamily") in {"Arial, sans-serif", "Verdana, sans-serif", "Tahoma, sans-serif", "Georgia, serif", "monospace"}:
         clean["fontFamily"] = payload["fontFamily"]
-    for key, low, high in (("fontSize", 11, 28), ("backgroundOpacity", 0, 100), ("maxMessages", 60, 5000), ("messageSpacing", 0, 20), ("messageRadius", 0, 24)):
+    for key, low, high in (("fontSize", 11, 28), ("backgroundOpacity", 0, 100), ("maxMessages", 5, 100), ("messageSpacing", 0, 20), ("messageRadius", 0, 24)):
         try:
             clean[key] = max(low, min(high, int(payload.get(key, clean[key]))))
         except (TypeError, ValueError):
