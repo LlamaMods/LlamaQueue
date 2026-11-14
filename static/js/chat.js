@@ -390,17 +390,116 @@
     });
 
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${protocol}//${location.host}/chat/ws`);
-    socket.addEventListener('open', () => { if (liveState) liveState.textContent = 'Chat connection active'; socket.send('ready'); });
-    socket.addEventListener('message', event => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'snapshot') { (data.messages || []).forEach(addMessage); Object.entries(data.status || {}).forEach(([platform,status]) => setStatus(platform,status)); }
-        else if (data.type === 'message') addMessage(data.message);
-        else if (data.type === 'message_deleted') markDeleted(data.platform, data.message_id, data.deleted_by);
-        else if (data.type === 'status') setStatus(data.platform, data.status);
+    const socketUrl = `${protocol}//${location.host}/chat/ws`;
+    let socket = null;
+    let reconnectTimer = null;
+    let heartbeatTimer = null;
+    let resumeProbeTimer = null;
+    let reconnectAttempt = 0;
+    let lastPongAt = 0;
+    let closingPage = false;
+
+    function updateConnectionLabel(message) {
+        if (liveState) liveState.textContent = message;
+    }
+
+    function scheduleReconnect() {
+        if (closingPage || document.hidden || reconnectTimer) return;
+        const delay = Math.min(15000, 1000 * (2 ** Math.min(reconnectAttempt, 4)));
+        reconnectAttempt += 1;
+        updateConnectionLabel('Chat reconnecting…');
+        reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            connectChatSocket();
+        }, delay);
+    }
+
+    function connectChatSocket() {
+        if (closingPage || document.hidden) return;
+        if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
+        try {
+            const activeSocket = new WebSocket(socketUrl);
+            socket = activeSocket;
+            activeSocket.addEventListener('open', () => {
+                if (socket !== activeSocket) return;
+                reconnectAttempt = 0;
+                lastPongAt = Date.now();
+                updateConnectionLabel('Chat connection active');
+                activeSocket.send('ready');
+            });
+            activeSocket.addEventListener('message', event => {
+                if (socket !== activeSocket) return;
+                let data;
+                try { data = JSON.parse(event.data); } catch (_) { return; }
+                if (data.type === 'pong') {
+                    lastPongAt = Date.now();
+                    if (resumeProbeTimer) { clearTimeout(resumeProbeTimer); resumeProbeTimer = null; }
+                } else if (data.type === 'snapshot') {
+                    (data.messages || []).forEach(addMessage);
+                    Object.entries(data.status || {}).forEach(([platform, status]) => setStatus(platform, status));
+                } else if (data.type === 'message') addMessage(data.message);
+                else if (data.type === 'message_deleted') markDeleted(data.platform, data.message_id, data.deleted_by);
+                else if (data.type === 'status') setStatus(data.platform, data.status);
+            });
+            activeSocket.addEventListener('close', () => {
+                if (socket !== activeSocket) return;
+                socket = null;
+                updateConnectionLabel('Chat disconnected · reconnecting…');
+                scheduleReconnect();
+            });
+            activeSocket.addEventListener('error', () => {
+                if (socket === activeSocket) updateConnectionLabel('Chat connection interrupted…');
+            });
+        } catch (_) {
+            socket = null;
+            scheduleReconnect();
+        }
+    }
+
+    function checkChatConnectionOnResume() {
+        if (closingPage || document.hidden) return;
+        if (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+            if (socket) socket = null;
+            if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+            connectChatSocket();
+            return;
+        }
+        if (socket.readyState === WebSocket.CONNECTING) return;
+        if (socket.readyState === WebSocket.OPEN) {
+            const probeStartedAt = Date.now();
+            try { socket.send('ping'); } catch (_) { socket.close(); return; }
+            if (resumeProbeTimer) clearTimeout(resumeProbeTimer);
+            resumeProbeTimer = setTimeout(() => {
+                resumeProbeTimer = null;
+                if (socket && socket.readyState === WebSocket.OPEN && lastPongAt < probeStartedAt) {
+                    updateConnectionLabel('Chat connection lost · reconnecting…');
+                    socket.close();
+                }
+            }, 8000);
+        }
+    }
+
+    connectChatSocket();
+    heartbeatTimer = setInterval(() => {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        if (Date.now() - lastPongAt > 60000) {
+            socket.close();
+            return;
+        }
+        try { socket.send('ping'); } catch (_) { socket.close(); }
+    }, 20000);
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) checkChatConnectionOnResume();
     });
-    socket.addEventListener('close', () => { if (liveState) liveState.textContent = 'Chat disconnected · refresh to reconnect'; });
-    socket.addEventListener('error', () => { if (liveState) liveState.textContent = 'Chat connection error'; });
-    const heartbeat = setInterval(() => { if (socket.readyState === WebSocket.OPEN) socket.send('ping'); }, 20000);
-    window.addEventListener('beforeunload', () => { clearInterval(heartbeat); socket.close(); });
+    window.addEventListener('pageshow', checkChatConnectionOnResume);
+    window.addEventListener('focus', checkChatConnectionOnResume);
+    window.addEventListener('online', checkChatConnectionOnResume);
+    window.addEventListener('beforeunload', () => {
+        closingPage = true;
+        clearInterval(heartbeatTimer);
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        if (resumeProbeTimer) clearTimeout(resumeProbeTimer);
+        if (socket) socket.close();
+    });
 })();

@@ -443,7 +443,9 @@ async def chat_websocket(websocket: WebSocket):
     await chat_hub.attach(int(user_id), websocket)
     try:
         while True:
-            await websocket.receive_text()
+            incoming = await websocket.receive_text()
+            if incoming == "ping":
+                await websocket.send_json({"type": "pong"})
     except WebSocketDisconnect:
         chat_hub.detach(int(user_id), websocket)
 
