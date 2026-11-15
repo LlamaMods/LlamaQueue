@@ -477,19 +477,21 @@
   .chat-customizer-grid { padding-left: 12px; padding-right: 12px; }
 }
 
-
-/* Omni page platform icon refresh */
-.chat-platform-icon svg{width:22px;height:22px;display:block;fill:#fff}
-.chat-platform-icon .platform-cutout{fill:none;stroke:#9146ff;stroke-width:2.2;stroke-linecap:round}
-.youtube-icon .platform-cutout{fill:#e62117;stroke:none}
-.chat-nav-icon{width:16px;height:16px;flex:0 0 16px;display:inline-block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
-.twitch-nav-icon{color:#b995ff}.youtube-nav-icon{color:#ff817a}.omni-mark{color:#aeb9c4}
-.chat-nav-icon.youtube-nav-icon path:first-child{fill:currentColor;stroke:none}
-.chat-nav-icon.youtube-nav-icon .icon-cutout{fill:#17212b;stroke:none}
-.chat-nav-icon.twitch-nav-icon path:first-child{fill:currentColor;stroke:none}
-.chat-nav-icon.twitch-nav-icon .icon-cutout{stroke:#17212b;stroke-width:2.1}
-.chat-tab{display:inline-flex;align-items:center;gap:7px}
-.chat-send-target{display:inline-flex;align-items:center;justify-content:center;gap:5px}
-.chat-message-platform svg{width:14px;height:14px;display:block;fill:#fff}
-.chat-message-platform.twitch svg .icon-cutout{fill:none;stroke:#9146ff;stroke-width:2.2;stroke-linecap:round}
-.chat-message-platform.youtube svg .icon-cutout{fill:#e62117;stroke:none}
+/* Omni-only platform identity system: hex tiles and dual-bubble mark. */
+#llama-chat-page .lq-platform-mark { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; line-height:0; }
+#llama-chat-page .lq-platform-mark svg { display:block; width:100%; height:100%; }
+#llama-chat-page .lq-platform-hex { width:48px; height:48px; padding:5px; box-sizing:border-box; clip-path:polygon(50% 0, 94% 22%, 94% 78%, 50% 100%, 6% 78%, 6% 22%); }
+#llama-chat-page .lq-twitch-mark { color:#fff; background:linear-gradient(145deg,#5422a0,#21113e); border:1px solid #a875ff; filter:drop-shadow(0 0 5px rgba(168,117,255,.3)); }
+#llama-chat-page .lq-youtube-mark { color:#fff; background:linear-gradient(145deg,#771b20,#301012); border:1px solid #ff555d; filter:drop-shadow(0 0 5px rgba(255,75,85,.25)); }
+#llama-chat-page .lq-platform-hex.lq-twitch-mark { outline:1px solid #a875ff; }
+#llama-chat-page .lq-platform-hex.lq-youtube-mark { outline:1px solid #ff555d; }
+#llama-chat-page .lq-omni-mark { width:28px; height:28px; }
+#llama-chat-page .lq-tab-mark { width:17px; height:17px; }
+#llama-chat-page .lq-send-mark { width:15px; height:15px; margin-right:5px; vertical-align:-3px; }
+#llama-chat-page .chat-platform-title .lq-platform-hex { width:52px; height:52px; }
+#llama-chat-page .chat-message-platform { background:transparent !important; border-radius:0 !important; overflow:visible; }
+#llama-chat-page .chat-message-platform svg { display:block; width:21px; height:21px; }
+#llama-chat-page .chat-message-platform.twitch { color:#a875ff; }
+#llama-chat-page .chat-message-platform.youtube { color:#ff454f; }
+#llama-chat-page .chat-tab[data-view="all"].active { background:rgba(145,70,255,.15); border-color:rgba(168,117,255,.5); color:#eadcff; }
+#llama-chat-page .chat-send-target[data-target="all"].active { background:linear-gradient(100deg,rgba(145,70,255,.18),rgba(230,33,23,.12)); border-color:#9b70e8; color:#f0e6ff; }

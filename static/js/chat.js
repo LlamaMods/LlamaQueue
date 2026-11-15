@@ -1,4 +1,8 @@
 (() => {
+    const platformGlyphs = {
+        twitch: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M9 5H43V31L32 42H23L16 48V42H9Z" fill="currentColor"/><path d="M15 11H37V29L29 37H22L15 43Z" fill="#171326"/><path d="M22 17V27M31 17V27" stroke="currentColor" stroke-width="4.5"/></svg>',
+        youtube: '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="3" y="9" width="42" height="30" rx="9" fill="currentColor"/><path d="M20 16L33 24L20 32Z" fill="#fff"/></svg>'
+    };
     const list = document.getElementById('chat-message-list');
     if (!list) return;
     const count = document.getElementById('chat-message-count');
@@ -200,12 +204,7 @@
         row.dataset.isBot = isBot ? '1' : '0';
         row.dataset.username = String(message.username || '');
         row.dataset.messageId = id;
-        const badge = document.createElement('span');
-        badge.className = `chat-message-platform ${message.platform}`;
-        badge.setAttribute('aria-label', message.platform === 'twitch' ? 'Twitch' : 'YouTube');
-        badge.innerHTML = message.platform === 'twitch'
-            ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h17v12l-5 5h-4l-3 3v-3H4z"/><path class="icon-cutout" d="M9 8v5m6-5v5"/></svg>'
-            : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 7.2a3 3 0 0 0-2.1-2.1C18 4.6 12 4.6 12 4.6s-6 0-7.9.5A3 3 0 0 0 2 7.2 31 31 0 0 0 1.5 12 31 31 0 0 0 2 16.8a3 3 0 0 0 2.1 2.1c1.9.5 7.9.5 7.9.5s6 0 7.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.8 31 31 0 0 0-.5-4.8Z"/><path class="icon-cutout" d="m10 8.8 5.5 3.2-5.5 3.2z"/></svg>';
+        const badge = document.createElement('span'); badge.className = `chat-message-platform ${message.platform}`; badge.innerHTML = platformGlyphs[message.platform] || ''; badge.setAttribute('aria-label', message.platform === 'twitch' ? 'Twitch' : 'YouTube');
         const content = document.createElement('div'); content.className = 'chat-message-content';
         const meta = document.createElement('div'); meta.className = 'chat-message-meta';
         const username = document.createElement('span'); username.className = 'chat-message-user'; username.textContent = message.username || 'Viewer';
