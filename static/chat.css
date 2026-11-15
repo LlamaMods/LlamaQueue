@@ -476,3 +476,20 @@
   .chat-customizer > summary { padding: 12px; }
   .chat-customizer-grid { padding-left: 12px; padding-right: 12px; }
 }
+
+
+/* Omni page platform icon refresh */
+.chat-platform-icon svg{width:22px;height:22px;display:block;fill:#fff}
+.chat-platform-icon .platform-cutout{fill:none;stroke:#9146ff;stroke-width:2.2;stroke-linecap:round}
+.youtube-icon .platform-cutout{fill:#e62117;stroke:none}
+.chat-nav-icon{width:16px;height:16px;flex:0 0 16px;display:inline-block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
+.twitch-nav-icon{color:#b995ff}.youtube-nav-icon{color:#ff817a}.omni-mark{color:#aeb9c4}
+.chat-nav-icon.youtube-nav-icon path:first-child{fill:currentColor;stroke:none}
+.chat-nav-icon.youtube-nav-icon .icon-cutout{fill:#17212b;stroke:none}
+.chat-nav-icon.twitch-nav-icon path:first-child{fill:currentColor;stroke:none}
+.chat-nav-icon.twitch-nav-icon .icon-cutout{stroke:#17212b;stroke-width:2.1}
+.chat-tab{display:inline-flex;align-items:center;gap:7px}
+.chat-send-target{display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.chat-message-platform svg{width:14px;height:14px;display:block;fill:#fff}
+.chat-message-platform.twitch svg .icon-cutout{fill:none;stroke:#9146ff;stroke-width:2.2;stroke-linecap:round}
+.chat-message-platform.youtube svg .icon-cutout{fill:#e62117;stroke:none}
