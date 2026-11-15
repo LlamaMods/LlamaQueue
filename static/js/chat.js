@@ -1,8 +1,4 @@
 (() => {
-    const platformGlyphs = {
-        twitch: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M9 5H43V31L32 42H23L16 48V42H9Z" fill="currentColor"/><path d="M15 11H37V29L29 37H22L15 43Z" fill="#171326"/><path d="M22 17V27M31 17V27" stroke="currentColor" stroke-width="4.5"/></svg>',
-        youtube: '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="3" y="9" width="42" height="30" rx="9" fill="currentColor"/><path d="M20 16L33 24L20 32Z" fill="#fff"/></svg>'
-    };
     const list = document.getElementById('chat-message-list');
     if (!list) return;
     const count = document.getElementById('chat-message-count');
@@ -204,7 +200,12 @@
         row.dataset.isBot = isBot ? '1' : '0';
         row.dataset.username = String(message.username || '');
         row.dataset.messageId = id;
-        const badge = document.createElement('span'); badge.className = `chat-message-platform ${message.platform}`; badge.innerHTML = platformGlyphs[message.platform] || ''; badge.setAttribute('aria-label', message.platform === 'twitch' ? 'Twitch' : 'YouTube');
+        const badge = document.createElement('span');
+        badge.className = `chat-message-platform ${message.platform}`;
+        badge.setAttribute('aria-label', message.platform === 'twitch' ? 'Twitch' : 'YouTube');
+        badge.innerHTML = message.platform === 'twitch'
+            ? '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 3h25v20l-7 6h-8l-5 3v-7H5Z"/><path class="mini-cut" d="M13 10v8m8-8v8"/></svg>'
+            : '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="5" width="28" height="22" rx="7"/><path d="m13 10 10 6-10 6Z"/></svg>';
         const content = document.createElement('div'); content.className = 'chat-message-content';
         const meta = document.createElement('div'); meta.className = 'chat-message-meta';
         const username = document.createElement('span'); username.className = 'chat-message-user'; username.textContent = message.username || 'Viewer';

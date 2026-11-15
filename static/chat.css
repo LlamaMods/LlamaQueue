@@ -477,21 +477,41 @@
   .chat-customizer-grid { padding-left: 12px; padding-right: 12px; }
 }
 
-/* Omni-only platform identity system: hex tiles and dual-bubble mark. */
-#llama-chat-page .lq-platform-mark { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; line-height:0; }
-#llama-chat-page .lq-platform-mark svg { display:block; width:100%; height:100%; }
-#llama-chat-page .lq-platform-hex { width:48px; height:48px; padding:5px; box-sizing:border-box; clip-path:polygon(50% 0, 94% 22%, 94% 78%, 50% 100%, 6% 78%, 6% 22%); }
-#llama-chat-page .lq-twitch-mark { color:#fff; background:linear-gradient(145deg,#5422a0,#21113e); border:1px solid #a875ff; filter:drop-shadow(0 0 5px rgba(168,117,255,.3)); }
-#llama-chat-page .lq-youtube-mark { color:#fff; background:linear-gradient(145deg,#771b20,#301012); border:1px solid #ff555d; filter:drop-shadow(0 0 5px rgba(255,75,85,.25)); }
-#llama-chat-page .lq-platform-hex.lq-twitch-mark { outline:1px solid #a875ff; }
-#llama-chat-page .lq-platform-hex.lq-youtube-mark { outline:1px solid #ff555d; }
-#llama-chat-page .lq-omni-mark { width:28px; height:28px; }
-#llama-chat-page .lq-tab-mark { width:17px; height:17px; }
-#llama-chat-page .lq-send-mark { width:15px; height:15px; margin-right:5px; vertical-align:-3px; }
-#llama-chat-page .chat-platform-title .lq-platform-hex { width:52px; height:52px; }
-#llama-chat-page .chat-message-platform { background:transparent !important; border-radius:0 !important; overflow:visible; }
-#llama-chat-page .chat-message-platform svg { display:block; width:21px; height:21px; }
-#llama-chat-page .chat-message-platform.twitch { color:#a875ff; }
-#llama-chat-page .chat-message-platform.youtube { color:#ff454f; }
-#llama-chat-page .chat-tab[data-view="all"].active { background:rgba(145,70,255,.15); border-color:rgba(168,117,255,.5); color:#eadcff; }
-#llama-chat-page .chat-send-target[data-target="all"].active { background:linear-gradient(100deg,rgba(145,70,255,.18),rgba(230,33,23,.12)); border-color:#9b70e8; color:#f0e6ff; }
+
+/* Omni platform identity — scoped to the Omni chat page only */
+#llama-chat-page .chat-platform-icon {
+  width: 66px; height: 66px; flex: 0 0 66px;
+  display: block; border-radius: 0; background: transparent !important;
+  filter: drop-shadow(0 0 8px rgba(164,112,255,.22));
+}
+#llama-chat-page .chat-platform-icon svg { display:block; width:100%; height:100%; overflow:visible; }
+#llama-chat-page .chat-platform-icon .platform-hex {
+  fill: #211438; stroke: #a875ff; stroke-width: 3.5;
+}
+#llama-chat-page .youtube-icon { filter: drop-shadow(0 0 8px rgba(255,65,65,.2)); }
+#llama-chat-page .youtube-icon .platform-hex { fill:#351416; stroke:#ff5555; }
+#llama-chat-page .twitch-mark { fill:#fff; }
+#llama-chat-page .twitch-cut { fill:none; stroke:#38205b; stroke-width:5; stroke-linecap:square; }
+#llama-chat-page .youtube-mark { fill:#f21f26; }
+#llama-chat-page .youtube-play { fill:#fff; stroke:none; }
+
+/* Distinct, compact platform marks in tabs and message rows */
+#llama-chat-page .tab-brand-icon,
+#llama-chat-page .send-brand { display:inline-flex; width:20px; height:20px; flex:0 0 20px; vertical-align:middle; }
+#llama-chat-page .tab-brand-icon svg,
+#llama-chat-page .send-brand svg { width:100%; height:100%; display:block; overflow:visible; }
+#llama-chat-page .twitch-mini svg path:first-child,
+#llama-chat-page .chat-message-platform.twitch svg path:first-child { fill:#9146ff; }
+#llama-chat-page .twitch-mini svg .mini-cut,
+#llama-chat-page .chat-message-platform.twitch svg .mini-cut { fill:none; stroke:#24143c; stroke-width:3; stroke-linecap:square; }
+#llama-chat-page .youtube-mini svg rect,
+#llama-chat-page .chat-message-platform.youtube svg rect { fill:#e62117; }
+#llama-chat-page .youtube-mini svg path,
+#llama-chat-page .chat-message-platform.youtube svg path { fill:#fff; }
+#llama-chat-page .omni-mini svg path:first-child { fill:none; stroke:#a875ff; stroke-width:3.5; stroke-linejoin:round; }
+#llama-chat-page .omni-mini svg path:last-child { fill:#ff5555; stroke:#ff5555; stroke-width:1; stroke-linejoin:round; }
+#llama-chat-page .chat-tab { display:inline-flex; align-items:center; gap:7px; }
+#llama-chat-page .chat-tab .tab-dot { display:none; }
+#llama-chat-page .chat-send-target { display:inline-flex; align-items:center; gap:6px; }
+#llama-chat-page .chat-message-platform { background:transparent !important; border-radius:0; }
+#llama-chat-page .chat-message-platform svg { display:block; width:100%; height:100%; }
