@@ -40,13 +40,25 @@
         const content=document.createElement('div');content.className='chat-message-content';
         const meta=document.createElement('div');meta.className='chat-message-meta';
         const user=document.createElement('span');user.className='chat-message-user';user.textContent=message.username||'Viewer';
+        const badgeItems=Array.isArray(message.badge_items)?message.badge_items:(message.badge_icons||[]).map(url=>({url,title:'Twitch badge'}));
         const time=document.createElement('span');time.className='chat-message-time';const date=new Date(message.timestamp||Date.now());time.textContent=Number.isNaN(date.getTime())?'':date.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
         const text=document.createElement('div');text.className='chat-message-text';text.textContent=message.text;
         meta.append(user);
         if(appearance.showBadges){
-            if(message.subscription_badge){const subTag=document.createElement('span');subTag.className='chat-user-badge chat-subscription-badge';subTag.textContent=String(message.subscription_badge).slice(0,12);meta.append(subTag);}
-            if(message.tenure_badge){const tenureTag=document.createElement('span');tenureTag.className='chat-user-badge chat-tenure-badge';tenureTag.textContent=String(message.tenure_badge).slice(0,8);meta.append(tenureTag);}
-            const labels=[...(message.badges||[])];if(message.verified)labels.push('Verified');if(message.moderator)labels.push('Moderator');labels.slice(0,5).forEach(label=>{const tag=document.createElement('span');tag.className='chat-user-badge';tag.textContent=String(label).replace(/[^a-z0-9 _-]/gi,'').slice(0,24);meta.append(tag);});}
+            if(message.subscription_badge){const subTag=document.createElement('span');subTag.className='chat-user-badge chat-subscription-badge';subTag.textContent=String(message.subscription_badge).slice(0,12);subTag.title='Subscription tier';meta.append(subTag);}
+            if(message.tenure_badge){const tenureTag=document.createElement('span');tenureTag.className='chat-user-badge chat-tenure-badge';tenureTag.textContent=String(message.tenure_badge).slice(0,8);tenureTag.title='Subscription tenure';meta.append(tenureTag);}
+            if(message.platform==='twitch'){
+                badgeItems.slice(0,8).forEach(item=>{
+                    const src=typeof item==='string'?item:item?.url;
+                    const label=String((typeof item==='object'&&(item.title||item.set_id))||'Platform badge').replace(/_/g,' ').replace(/\s+/g,' ').trim();
+                    if(/^https:\/\//i.test(String(src||''))){const icon=document.createElement('img');icon.className='chat-platform-badge-icon';icon.src=src;icon.alt=label;icon.title=label;icon.loading='lazy';icon.addEventListener('error',()=>{const tag=document.createElement('span');tag.className='chat-user-badge';tag.textContent=label;icon.replaceWith(tag);},{once:true});meta.append(icon);}
+                    else if(label!=='Platform badge'){const tag=document.createElement('span');tag.className='chat-user-badge';tag.textContent=label;meta.append(tag);}
+                });
+            }else{
+                const labels=[...(message.badges||[])];if(message.verified)labels.push('Verified');if(message.moderator)labels.push('Moderator');if(message.owner)labels.push('Owner');
+                labels.filter(label=>! /^(owner|moderator)$/i.test(String(label))).slice(0,5).forEach(label=>{const tag=document.createElement('span');tag.className='chat-user-badge';tag.textContent=String(label).replace(/[^a-z0-9 _-]/gi,'').slice(0,24);meta.append(tag);});
+            }
+        }
         meta.append(time);content.append(meta,text);row.append(badge,content);list.append(row);
         // OBS has less vertical room than the dashboard: cap it at eight rows.
         while(list.querySelectorAll('.chat-message').length>appearance.maxMessages){

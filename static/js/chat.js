@@ -204,7 +204,14 @@
         const content = document.createElement('div'); content.className = 'chat-message-content';
         const meta = document.createElement('div'); meta.className = 'chat-message-meta';
         const username = document.createElement('span'); username.className = 'chat-message-user'; username.textContent = message.username || 'Viewer';
-        if (message.moderator || message.owner || message.broadcaster) { const role = document.createElement('span'); role.className = 'chat-role-icon' + (message.owner || message.broadcaster ? ' lead' : ''); role.textContent = message.owner || message.broadcaster ? '★' : '◆'; role.title = message.owner || message.broadcaster ? 'Channel owner / lead' : 'Moderator'; role.setAttribute('aria-label', role.title); username.append(role); }
+        const badgeItems = Array.isArray(message.badge_items) ? message.badge_items : (message.badge_icons || []).map(url => ({url, title: 'Twitch badge'}));
+        const hasNativeTwitchRoleBadge = message.platform === 'twitch' && badgeItems.some(item => {
+            const setId = String(item?.set_id || '').toLowerCase();
+            return ['broadcaster', 'moderator', 'lead_moderator'].includes(setId);
+        });
+        // Twitch already supplies broadcaster/moderator badge artwork. Avoid adding
+        // a second star/diamond beside the username when that native badge exists.
+        if ((message.moderator || message.owner || message.broadcaster) && !hasNativeTwitchRoleBadge) { const role = document.createElement('span'); role.className = 'chat-role-icon' + (message.owner || message.broadcaster ? ' lead' : ''); role.textContent = message.owner || message.broadcaster ? '★' : '◆'; role.title = message.owner || message.broadcaster ? 'Channel owner / lead' : 'Moderator'; role.setAttribute('aria-label', role.title); username.append(role); }
         const time = document.createElement('span'); time.className = 'chat-message-time';
         const date = new Date(message.timestamp || Date.now()); time.textContent = Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
         const text = document.createElement('div'); text.className = 'chat-message-text';
@@ -249,19 +256,28 @@
                 tenureTag.textContent = String(message.tenure_badge).slice(0, 8);
                 meta.append(tenureTag);
             }
-            const badgeItems = Array.isArray(message.badge_items) ? message.badge_items : (message.badge_icons || []).map(url => ({url, title: 'Twitch badge'}));
             badgeItems.slice(0, 8).forEach(item => {
                 const src = typeof item === 'string' ? item : item?.url;
-                if (!/^https:\/\//i.test(String(src || ''))) return;
-                const icon = document.createElement('img'); icon.className='chat-platform-badge-icon'; icon.src=src;
-                icon.alt=(typeof item === 'object' && item.title) || 'Platform badge';
-                icon.title=icon.alt; icon.loading='lazy'; meta.append(icon);
+                const label = String((typeof item === 'object' && (item.title || item.set_id)) || 'Platform badge')
+                    .replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+                if (/^https:\/\//i.test(String(src || ''))) {
+                    const icon = document.createElement('img'); icon.className='chat-platform-badge-icon'; icon.src=src;
+                    icon.alt=label; icon.title=label; icon.loading='lazy';
+                    // A missing CDN image should degrade to a clean text badge, not a broken icon.
+                    icon.addEventListener('error', () => { const fallback=document.createElement('span'); fallback.className='chat-user-badge'; fallback.textContent=label; fallback.title=label; icon.replaceWith(fallback); }, {once:true});
+                    meta.append(icon);
+                } else if (message.platform === 'twitch' && label !== 'Platform badge') {
+                    const tag=document.createElement('span'); tag.className='chat-user-badge'; tag.textContent=label; tag.title=label; meta.append(tag);
+                }
             });
-            const labels = [...(message.badges || [])].filter(label => !/^moderator$/i.test(String(label)));
+            // Twitch's image badges are the authoritative badge display. Do not also
+            // print raw protocol labels such as "broadcaster 1" and "gengar 1".
+            const labels = message.platform === 'twitch' && badgeItems.length
+                ? []
+                : [...(message.badges || [])].map(label => String(label).replace(/\s+\d+$/, '').replace(/_/g, ' ').trim()).filter(label => !/^(moderator|owner|broadcaster)$/i.test(label));
             if (message.member && !message.subscription_badge && !labels.includes('Member')) labels.push('Member');
             if (message.verified && !labels.includes('Verified')) labels.push('Verified');
-
-            if (message.vip) labels.push('VIP'); if (message.broadcaster || message.owner) labels.push('Owner');
+            if (message.vip && !labels.some(label => /^vip$/i.test(label))) labels.push('VIP');
             labels.slice(0, 6).forEach(label => { const tag = document.createElement('span'); tag.className = 'chat-user-badge'; tag.textContent = String(label).replace(/[^a-z0-9 _-]/gi,'').slice(0,32); meta.append(tag); });
         }
         meta.append(time); content.append(meta, text);

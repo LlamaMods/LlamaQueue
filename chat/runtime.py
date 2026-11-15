@@ -359,9 +359,14 @@ class ChatHub:
                                 badge_response.raise_for_status()
                                 for badge_set in badge_response.json().get("data", []):
                                     for version in badge_set.get("versions", []):
-                                        badge_map[f"{badge_set.get('set_id')}:{version.get('id')}"] = {
+                                        badge_set_id = str(badge_set.get("set_id") or "badge")
+                                        badge_map[f"{badge_set_id}:{version.get('id')}"] = {
                                             "url": version.get("image_url_2x") or version.get("image_url_1x"),
-                                            "title": f"{badge_set.get('set_id')} {version.get('title') or version.get('id')}".strip(),
+                                            # Keep the tooltip/alt text human-readable. The set name
+                                            # is already represented by the badge itself; prefixing
+                                            # it here produced labels such as "broadcaster Broadcaster".
+                                            "title": str(version.get("title") or badge_set_id.replace("_", " ").title()),
+                                            "set_id": badge_set_id,
                                         }
                             self.twitch_badge_cache[badge_cache_key] = badge_map
                         except Exception:
@@ -499,6 +504,23 @@ class ChatHub:
                                 user_id, "twitch", chatter_id, event.get("chatter_user_name"), False
                             )
                         tier_labels = {"twitch_t1": "T1", "twitch_t2": "T2", "twitch_t3": "T3"}
+                        badge_items = []
+                        badge_labels = []
+                        badge_cache = self.twitch_badge_cache.get(str(config["platform_user_id"]), {})
+                        for badge_row in badge_rows:
+                            set_id = str(badge_row.get("set_id") or "badge")
+                            badge_info = badge_cache.get(f"{set_id}:{badge_row.get('id')}", {})
+                            clean_title = str(badge_info.get("title") or set_id.replace("_", " ").title())
+                            # Keep one canonical badge record for rendering. If artwork is
+                            # unavailable, the UI can show this clean title as a text fallback.
+                            badge_items.append({
+                                "url": badge_info.get("url"),
+                                "title": clean_title,
+                                "set_id": set_id,
+                            })
+                            if set_id != "subscriber":
+                                badge_labels.append(set_id.replace("_", " ").title())
+
                         await self.publish(user_id, {
                             "id": message.get("message_id") or packet.get("metadata", {}).get("message_id"),
                             "platform": "twitch",
@@ -507,9 +529,9 @@ class ChatHub:
                             "text": text,
                             "timestamp": message.get("sent_at") or datetime.now(timezone.utc).isoformat(),
                             "color": event.get("color"),
-                            "badges": [f"{badge.get('set_id')} {badge.get('id')}".strip() for badge in badge_rows if badge.get("set_id") != "subscriber"],
-                            "badge_icons": [self.twitch_badge_cache.get(str(config["platform_user_id"]), {}).get(f"{badge.get('set_id')}:{badge.get('id')}", {}).get("url") for badge in badge_rows if self.twitch_badge_cache.get(str(config["platform_user_id"]), {}).get(f"{badge.get('set_id')}:{badge.get('id')}", {}).get("url")],
-                            "badge_items": [self.twitch_badge_cache.get(str(config["platform_user_id"]), {}).get(f"{badge.get('set_id')}:{badge.get('id')}") for badge in badge_rows if self.twitch_badge_cache.get(str(config["platform_user_id"]), {}).get(f"{badge.get('set_id')}:{badge.get('id')}")],
+                            "badges": badge_labels,
+                            "badge_icons": [item["url"] for item in badge_items if item.get("url")],
+                            "badge_items": badge_items,
                             "segments": segments,
                             "event": bool(fragment_bits),
                             "event_type": "cheer" if fragment_bits else None,
