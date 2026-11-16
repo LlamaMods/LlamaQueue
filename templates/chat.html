@@ -45,7 +45,7 @@
                 <svg viewBox="0 0 100 100" role="img"><path class="platform-hex" d="M50 4 91 27 91 73 50 96 9 73 9 27Z"/><rect class="youtube-mark" x="20" y="30" width="60" height="40" rx="11"/><path class="youtube-play" d="M44 39 65 50 44 61Z"/></svg>
             </span><div><h2>YouTube</h2><p>{% if connections.get('youtube') %}{{ connections['youtube'].platform_display_name or connections['youtube'].platform_login }}{% else %}Not connected{% endif %}</p></div></div>
             <div class="chat-platform-footer"><span class="chat-status-dot" id="youtube-status-dot"></span><span id="youtube-status">{% if connections.get('youtube') %}Starting…{% else %}Connect an account{% endif %}</span>
-            {% if connections.get('youtube') %}<a class="chat-link-button youtube-button" href="/chat/connect/google">Update permissions</a><form method="post" action="/chat/disconnect/youtube"><button class="chat-link-button youtube-button" type="submit">Disconnect</button></form>{% elif local_test_mode %}<span class="chat-link-button youtube-button">Connect on Render for live chat</span>{% else %}<a class="chat-connect-button youtube-button" href="/chat/connect/google">Connect YouTube</a>{% endif %}</div>
+            {% if connections.get('youtube') %}<button class="chat-link-button youtube-button" type="button" id="youtube-backup-connect" title="Run one manual YouTube live-chat discovery check if automatic detection misses your stream">Backup connect</button><a class="chat-link-button youtube-button" href="/chat/connect/google">Update permissions</a><form method="post" action="/chat/disconnect/youtube"><button class="chat-link-button youtube-button" type="submit">Disconnect</button></form>{% elif local_test_mode %}<span class="chat-link-button youtube-button">Connect on Render for live chat</span>{% else %}<a class="chat-connect-button youtube-button" href="/chat/connect/google">Connect YouTube</a>{% endif %}</div>
         </article>
     </section>
 
@@ -56,7 +56,6 @@
             <label>Font<select data-setting="fontFamily"><option value="Arial, sans-serif">Arial</option><option value="Verdana, sans-serif">Verdana</option><option value="Tahoma, sans-serif">Tahoma</option><option value="Georgia, serif">Georgia</option><option value="monospace">Monospace</option></select></label>
             <label>Font size <output data-output="fontSize"></output><input type="range" min="11" max="28" data-setting="fontSize"></label>
             <label>Background opacity <output data-output="backgroundOpacity"></output><input type="range" min="0" max="100" data-setting="backgroundOpacity"></label>
-            <label>Max messages <output data-output="maxMessages"></output><input type="range" min="5" max="100" data-setting="maxMessages"></label>
             <label>Message spacing <output data-output="messageSpacing"></output><input type="range" min="0" max="20" data-setting="messageSpacing"></label>
             <label>Corner radius <output data-output="messageRadius"></output><input type="range" min="0" max="24" data-setting="messageRadius"></label>
             <label>Background color <input type="color" data-setting="backgroundColor"></label>

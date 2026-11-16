@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 from collections import deque
 from datetime import datetime, timezone
 from typing import Any
@@ -28,14 +29,22 @@ class ChatHub:
         self.tasks: dict[tuple[int, str], asyncio.Task] = {}
         self.status: dict[int, dict[str, str]] = {}
         self.youtube_live_chat_ids: dict[int, str] = {}
+        self._youtube_lookup_blocked_video: dict[int, str] = {}
+        # One YouTube StreamList worker per channel per process. Connected
+        # LlamaQueue users for the same channel subscribe to its fan-out.
+        self.youtube_channel_subscribers: dict[str, set[int]] = {}
+        self.youtube_channel_tasks: dict[str, asyncio.Task] = {}
+        # Explicit user-triggered fallback: one quota-metered discovery lookup
+        # only when the YouTube backup-connect button is pressed.
+        self.youtube_backup_connect_requests: set[str] = set()
         self.twitch_badge_cache: dict[str, dict[str, str]] = {}
         self._lock = asyncio.Lock()
 
     async def publish(self, user_id: int, message: dict[str, Any]):
-        # Keep every message for this user's active server session. Do not use
-        # deque(maxlen=...) here: dashboard/Omni history must not roll off at 30,
-        # 60, or any other arbitrary message count.
-        history = self.messages.setdefault(user_id, deque())
+        # Keep the most recent 300 messages for Omni scrollback. The browser
+        # viewport is independent; it can show the latest messages while older
+        # retained messages remain available by scrolling upward.
+        history = self.messages.setdefault(user_id, deque(maxlen=300))
         history.append(message)
         async with self._lock:
             stale = []
@@ -59,10 +68,11 @@ class ChatHub:
             for websocket in stale:
                 self.clients.get(user_id, set()).discard(websocket)
 
-    async def attach(self, user_id: int, websocket):
+    async def attach(self, user_id: int, websocket, snapshot_limit: int = 300):
         await websocket.accept()
         self.clients.setdefault(user_id, set()).add(websocket)
-        await websocket.send_json({"type": "snapshot", "messages": list(self.messages.get(user_id, [])), "status": self.status.get(user_id, {})})
+        history = list(self.messages.get(user_id, []))
+        await websocket.send_json({"type": "snapshot", "messages": history[-max(1, min(300, int(snapshot_limit))):], "status": self.status.get(user_id, {})})
 
     def detach(self, user_id: int, websocket):
         self.clients.get(user_id, set()).discard(websocket)
@@ -111,8 +121,27 @@ class ChatHub:
             if not config:
                 await self.set_status(user_id, platform, "Not connected")
                 continue
-            worker = self._twitch_worker if platform == "twitch" else self._youtube_worker
-            self.tasks[key] = asyncio.create_task(worker(user_id, config), name=f"chat-{platform}-{user_id}")
+            if platform == "youtube":
+                channel_id = str(config.get("platform_user_id") or "")
+                if not channel_id:
+                    await self.set_status(user_id, "youtube", "Connected · missing YouTube channel ID")
+                    continue
+                subscribers = self.youtube_channel_subscribers.setdefault(channel_id, set())
+                subscribers.add(user_id)
+                shared_task = self.youtube_channel_tasks.get(channel_id)
+                if shared_task and not shared_task.done():
+                    self.tasks[key] = shared_task
+                    continue
+                shared_task = asyncio.create_task(
+                    self._youtube_worker(user_id, config, channel_id),
+                    name=f"chat-youtube-channel-{channel_id}",
+                )
+                self.youtube_channel_tasks[channel_id] = shared_task
+                self.tasks[key] = shared_task
+            else:
+                self.tasks[key] = asyncio.create_task(
+                    self._twitch_worker(user_id, config), name=f"chat-twitch-{user_id}"
+                )
 
     def _record_identity(self, user_id: int, platform: str, platform_user_id: str | None,
                          username: str | None, is_member: bool, subscription_key: str | None = None,
@@ -408,8 +437,24 @@ class ChatHub:
                                 "bits_badge_tier": ("BITS BADGE MILESTONE", "bits"),
                                 "announcement": ("ANNOUNCEMENT", "announcement"),
                                 "charity_donation": ("CHARITY DONATION", "charity"),
+                                "unraid": ("RAID ENDED", "unraid"),
+                                "shared_chat_sub": ("SHARED CHAT SUBSCRIPTION", "shared_chat_sub"),
+                                "shared_chat_resub": ("SHARED CHAT RESUBSCRIPTION", "shared_chat_resub"),
+                                "shared_chat_sub_gift": ("SHARED CHAT GIFTED SUBSCRIPTION", "shared_chat_sub_gift"),
+                                "shared_chat_community_sub_gift": ("SHARED CHAT COMMUNITY GIFTS", "shared_chat_community_sub_gift"),
+                                "shared_chat_raid": ("SHARED CHAT RAID", "shared_chat_raid"),
+                                "pay_it_forward": ("PAY IT FORWARD", "pay_it_forward"),
+                                "community_pay_it_forward": ("COMMUNITY PAY IT FORWARD", "community_pay_it_forward"),
+                                "standard_pay_forward": ("PAY IT FORWARD", "standard_pay_forward"),
+                                "power_up": ("POWER UP", "power_up"),
+                                "gigantified_emote": ("GIGANTIFIED EMOTE", "gigantified_emote"),
+                                "message_effect": ("MESSAGE EFFECT", "message_effect"),
                             }
-                            title, event_kind = notice_map.get(notice, ("TWITCH COMMUNITY EVENT", notice))
+                            if notice in notice_map:
+                                title, event_kind = notice_map[notice]
+                            else:
+                                readable_notice = str(notice or "unknown").replace("_", " ").strip().upper()
+                                title, event_kind = (f"TWITCH: {readable_notice}", str(notice or "unknown"))
                             nested_key = {
                                 "sub": "sub", "resub": "resub", "sub_gift": "sub_gift",
                                 "community_sub_gift": "community_sub_gift", "raid": "raid",
@@ -419,8 +464,11 @@ class ChatHub:
                             if not isinstance(detail_source, dict):
                                 detail_source = {}
                             detail_source = {**event, **detail_source}
-                            chatter_name = event.get("chatter_user_name") or event.get("user_name") or "Anonymous"
-                            recipient = detail_source.get("recipient_user_name") or detail_source.get("recipient_user_login")
+                            chatter_name = (event.get("chatter_user_name") or event.get("user_name")
+                                            or event.get("broadcaster_user_name") or event.get("gifter_user_name")
+                                            or event.get("user_login") or "Unknown user")
+                            recipient = (detail_source.get("recipient_user_name") or detail_source.get("recipient_user_login")
+                                         or detail_source.get("gifter_user_name"))
                             tier_value = str(detail_source.get("sub_tier") or detail_source.get("tier") or "")
                             tier_label = {"1000": "Tier 1", "2000": "Tier 2", "3000": "Tier 3"}.get(tier_value, f"Tier {tier_value}" if tier_value else "")
                             details = []
@@ -447,9 +495,15 @@ class ChatHub:
                                 currency = detail_source.get("currency") or detail_source.get("currency_code")
                                 details.append(f"Donated {amount} {currency or ''}".strip() if amount else "Made a charity donation")
                             else:
-                                for key in ("cumulative_months", "streak_months", "duration_months", "total", "recipient_user_name", "bits", "viewer_count"):
+                                detail_keys = (
+                                    "cumulative_months", "streak_months", "duration_months", "total",
+                                    "recipient_user_name", "recipient_user_login", "bits", "viewer_count",
+                                    "amount", "currency", "amount_value", "currency_code", "message",
+                                    "emote", "power_up_type", "shared_chat_session_id",
+                                )
+                                for key in detail_keys:
                                     value = detail_source.get(key)
-                                    if value not in (None, "", 0):
+                                    if value not in (None, "", 0) and not isinstance(value, (dict, list)):
                                         details.append(f"{key.replace('_', ' ').title()}: {value}")
                                 if tier_label:
                                     details.append(tier_label)
@@ -457,7 +511,8 @@ class ChatHub:
                             await self.publish_system(user_id, {
                                 "id": packet.get("metadata", {}).get("message_id") or f"twitch-event-{datetime.now(timezone.utc).timestamp()}",
                                 "platform": "twitch", "username": chatter_name,
-                                "user_id": event.get("chatter_user_id") or event.get("user_id"),
+                                "user_id": (event.get("chatter_user_id") or event.get("user_id")
+                                            or event.get("broadcaster_user_id") or event.get("gifter_user_id")),
                                 "text": detail_text,
                                 "timestamp": datetime.now(timezone.utc).isoformat(),
                                 "event": True, "event_type": event_kind, "event_title": title,
@@ -561,10 +616,75 @@ class ChatHub:
                 await asyncio.sleep(retry_delay)
                 retry_delay = min(retry_delay * 2, 60)
 
-    async def _youtube_worker(self, user_id: int, config: dict):
+    async def _youtube_channel_status(self, channel_id: str, owner_user_id: int, value: str):
+        subscribers = set(self.youtube_channel_subscribers.get(channel_id, {owner_user_id}))
+        for subscriber_id in subscribers:
+            await self.set_status(subscriber_id, "youtube", value)
+
+    async def _youtube_channel_publish(self, channel_id: str, owner_user_id: int, message: dict[str, Any]):
+        subscribers = set(self.youtube_channel_subscribers.get(channel_id, {owner_user_id}))
+        for subscriber_id in subscribers:
+            if message.get("user_id"):
+                self._record_identity(
+                    subscriber_id, "youtube", str(message.get("user_id")),
+                    message.get("username"), bool(message.get("member")),
+                    "youtube_member" if message.get("member") else None,
+                )
+            await self.publish(subscriber_id, dict(message))
+
+    async def _youtube_channel_mark_deleted(self, channel_id: str, owner_user_id: int, message_id: str | None, deleted_by: str | None = None):
+        subscribers = set(self.youtube_channel_subscribers.get(channel_id, {owner_user_id}))
+        for subscriber_id in subscribers:
+            await self.mark_deleted(subscriber_id, "youtube", message_id, deleted_by)
+
+    def request_youtube_backup_connect(self, channel_id: str) -> None:
+        """Queue one explicit YouTube API discovery attempt for this channel."""
+        if channel_id:
+            self.youtube_backup_connect_requests.add(str(channel_id))
+
+    @staticmethod
+    def _youtube_public_live(channel_id: str | None) -> tuple[bool | None, str | None]:
+        """Check a channel's public /live page without consuming YouTube Data API quota."""
+        if not channel_id:
+            return False, None
+        try:
+            response = requests.get(
+                f"https://www.youtube.com/channel/{channel_id}/live",
+                headers={"User-Agent": "Mozilla/5.0 (compatible; LlamaQueue/1.0)"},
+                timeout=12,
+                allow_redirects=True,
+            )
+            if response.status_code == 404:
+                return False, None
+            if response.status_code != 200:
+                return None, None
+            html = response.text
+            # /live may redirect to a watch URL. Only treat it as live when
+            # YouTube's page explicitly marks the current broadcast as live now.
+            live_now = bool(
+                re.search(r'"isLiveNow"\s*:\s*true', html)
+                or re.search(r'"isLive"\s*:\s*true', html)
+            )
+            if not live_now:
+                return False, None
+            video_id = None
+            match = re.search(r'[?&]v=([A-Za-z0-9_-]{11})', response.url)
+            if match:
+                video_id = match.group(1)
+            if not video_id:
+                match = re.search(r'"videoId"\s*:\s*"([A-Za-z0-9_-]{11})"', html)
+                if match:
+                    video_id = match.group(1)
+            return True, video_id
+        except requests.RequestException as exc:
+            logger.warning("YouTube public live-page check failed for channel %s: %s", channel_id, exc)
+            return None, None
+
+    async def _youtube_worker(self, user_id: int, config: dict, channel_id: str | None = None):
         import os
         from datetime import timedelta
 
+        channel_id = str(channel_id or config.get("platform_user_id") or "")
         try:
             credentials = Credentials(
                 token=config["access_token"],
@@ -577,6 +697,7 @@ class ChatHub:
             )
             youtube = await asyncio.to_thread(build, "youtube", "v3", credentials=credentials, cache_discovery=False)
             previous_chat_id = None
+            previous_video_id = None
             page_token = None
 
             while True:
@@ -584,28 +705,137 @@ class ChatHub:
                     await asyncio.to_thread(credentials.refresh, GoogleRequest())
                     await self._save_tokens(user_id, "youtube", credentials.token, credentials.refresh_token, credentials.expiry)
 
-                result = await asyncio.to_thread(
-                    lambda: youtube.liveBroadcasts().list(part="id,snippet,status", mine=True, broadcastType="all", maxResults=50).execute()
+                # Offline detection uses the public channel page, not the
+                # quota-metered YouTube Data API. No API request is made while
+                # the channel is offline.
+                is_live, public_video_id = await asyncio.to_thread(
+                    self._youtube_public_live, config.get("platform_user_id")
                 )
-                live_chat_id = None
-                for broadcast in result.get("items", []):
-                    if broadcast.get("status", {}).get("lifeCycleStatus") == "live":
-                        live_chat_id = broadcast.get("snippet", {}).get("liveChatId")
-                        if live_chat_id:
-                            break
+                if is_live and public_video_id:
+                    if previous_video_id and public_video_id != previous_video_id:
+                        # A new live video means the old live-chat ID and resume
+                        # cursor must not be reused for the new broadcast.
+                        previous_chat_id = None
+                        page_token = None
+                        self.youtube_live_chat_ids.pop(user_id, None)
+                        self._youtube_lookup_blocked_video.pop(user_id, None)
+                    previous_video_id = public_video_id
 
-                if not live_chat_id:
+                # The manual backup button is the only path that performs a
+                # discovery lookup when public-page detection says the channel
+                # is offline/unknown. It is one-shot per click, never a poll.
+                if channel_id in self.youtube_backup_connect_requests:
+                    self.youtube_backup_connect_requests.discard(channel_id)
+                    if not is_live:
+                        await self._youtube_channel_status(
+                            channel_id, user_id, "Manual YouTube connection check…"
+                        )
+                        try:
+                            backup_result = await asyncio.to_thread(
+                                lambda: youtube.liveBroadcasts().list(
+                                    part="id,snippet,status", mine=True,
+                                    broadcastType="all", maxResults=50
+                                ).execute()
+                            )
+                            for broadcast in backup_result.get("items", []):
+                                if broadcast.get("status", {}).get("lifeCycleStatus") != "live":
+                                    continue
+                                backup_chat_id = broadcast.get("snippet", {}).get("liveChatId")
+                                if backup_chat_id:
+                                    live_chat_id = backup_chat_id
+                                    previous_chat_id = backup_chat_id
+                                    previous_video_id = broadcast.get("id") or public_video_id
+                                    self.youtube_live_chat_ids[user_id] = backup_chat_id
+                                    is_live = True
+                                    public_video_id = previous_video_id
+                                    self._youtube_lookup_blocked_video.pop(user_id, None)
+                                    break
+                            if not is_live:
+                                await self._youtube_channel_status(
+                                    channel_id, user_id,
+                                    "No active YouTube live chat found · automatic detection remains on"
+                                )
+                        except Exception as backup_error:
+                            quota_exhausted = (
+                                "quotaExceeded" in str(backup_error)
+                                or getattr(backup_error, "reason", None) == "quotaExceeded"
+                            )
+                            label = "YouTube API quota exhausted" if quota_exhausted else "Backup check failed"
+                            await self._youtube_channel_status(
+                                channel_id, user_id,
+                                f"{label} · automatic detection remains on"
+                            )
+                            logger.warning(
+                                "Manual YouTube backup lookup failed for channel %s: %s",
+                                channel_id, backup_error
+                            )
+
+                if is_live is None:
+                    # A page/network failure is not proof that the broadcast ended.
+                    # Keep the known chat ID and resume token intact.
+                    if previous_chat_id:
+                        live_chat_id = previous_chat_id
+                    else:
+                        await self._youtube_channel_status(channel_id, user_id, "Connected · checking live status")
+                        await asyncio.sleep(30)
+                        continue
+                elif not is_live:
                     self.youtube_live_chat_ids.pop(user_id, None)
-                    await self.set_status(user_id, "youtube", "Connected · waiting for a live stream")
+                    self._youtube_lookup_blocked_video.pop(user_id, None)
+                    previous_chat_id = None
+                    previous_video_id = None
+                    page_token = None
+                    await self._youtube_channel_status(channel_id, user_id, "Connected · waiting for a live stream")
                     await asyncio.sleep(45)
                     continue
+
+                # Keep the known chat ID across transient StreamList disconnects.
+                live_chat_id = previous_chat_id or self.youtube_live_chat_ids.get(user_id)
+                if not live_chat_id:
+                    # One discovery lookup per live video. Do not repeatedly
+                    # spend quota if the live chat is unavailable or quota is exhausted.
+                    lookup_key = public_video_id or "__unknown_live_video__"
+                    if lookup_key == self._youtube_lookup_blocked_video.get(user_id):
+                        await self._youtube_channel_status(channel_id, user_id, "Live detected · chat lookup unavailable")
+                        await asyncio.sleep(45)
+                        continue
+                    try:
+                        result = await asyncio.to_thread(
+                            lambda: youtube.liveBroadcasts().list(
+                                part="id,snippet,status", mine=True,
+                                broadcastType="all", maxResults=50
+                            ).execute()
+                        )
+                        for broadcast in result.get("items", []):
+                            if broadcast.get("status", {}).get("lifeCycleStatus") == "live":
+                                live_chat_id = broadcast.get("snippet", {}).get("liveChatId")
+                                if live_chat_id:
+                                    break
+                    except Exception as lookup_error:
+                        reason = getattr(lookup_error, "reason", None)
+                        quota_exhausted = "quotaExceeded" in str(lookup_error) or reason == "quotaExceeded"
+                        self._youtube_lookup_blocked_video[user_id] = lookup_key
+                        if quota_exhausted:
+                            await self._youtube_channel_status(channel_id, user_id, "Live detected · YouTube API quota exhausted")
+                            logger.error("YouTube chat lookup hit quota for user %s; keeping worker alive", user_id)
+                        else:
+                            await self._youtube_channel_status(channel_id, user_id, "Live detected · chat lookup temporarily unavailable")
+                            logger.warning("YouTube chat lookup failed for user %s; will not repeatedly spend quota: %s", user_id, lookup_error)
+                        await asyncio.sleep(60)
+                        continue
+                    if not live_chat_id:
+                        self._youtube_lookup_blocked_video[user_id] = lookup_key
+                        await self._youtube_channel_status(channel_id, user_id, "Live detected · no live chat available")
+                        await asyncio.sleep(45)
+                        continue
 
                 self.youtube_live_chat_ids[user_id] = live_chat_id
                 if live_chat_id != previous_chat_id:
                     page_token = None
                     previous_chat_id = live_chat_id
+                    self._youtube_lookup_blocked_video.pop(user_id, None)
 
-                await self.set_status(user_id, "youtube", "Connected · receiving chat")
+                await self._youtube_channel_status(channel_id, user_id, "Connected · receiving chat")
                 channel = grpc.aio.secure_channel("youtube.googleapis.com:443", grpc.ssl_channel_credentials())
                 rpc = channel.unary_stream(
                     "/youtube.api.v3.V3DataLiveChatMessageService/StreamList",
@@ -629,7 +859,7 @@ class ChatHub:
                                 snippet = item.snippet
                                 author = item.author_details
                                 if getattr(snippet, "type", 0) == 2:  # TOMBSTONE: message was removed by a moderator
-                                    await self.mark_deleted(user_id, "youtube", item.id, "Moderator")
+                                    await self._youtube_channel_mark_deleted(channel_id, user_id, item.id, "Moderator")
                                     continue
                                 milestone_months = None
                                 milestone_comment = ""
@@ -689,7 +919,7 @@ class ChatHub:
                                     text = text or "Joined as a channel member"
                                 if not text and not event_title:
                                     continue
-                                await self.publish(user_id, {
+                                await self._youtube_channel_publish(channel_id, user_id, {
                                     "id": item.id,
                                     "platform": "youtube",
                                     "username": author.display_name or "YouTube user",
@@ -711,19 +941,22 @@ class ChatHub:
                                 })
                     except grpc.aio.AioRpcError as stream_error:
                         logger.info("YouTube live chat stream ended for user %s: %s", user_id, stream_error)
-                        await self.set_status(user_id, "youtube", "Reconnecting…")
+                        await self._youtube_channel_status(channel_id, user_id, "Reconnecting…")
+                    except Exception as stream_error:
+                        logger.warning("YouTube live chat stream error for user %s: %s", user_id, stream_error)
+                        await self._youtube_channel_status(channel_id, user_id, "Connection interrupted · reconnecting…")
                 finally:
                     await channel.close()
 
                 # The stream normally ends when the broadcast ends or the network
                 # drops. Re-discover the active chat and resume with pageToken.
-                await self.set_status(user_id, "youtube", "Reconnecting…")
+                await self._youtube_channel_status(channel_id, user_id, "Reconnecting…")
                 await asyncio.sleep(5)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
             logger.exception("YouTube chat worker stopped for user %s", user_id)
-            await self.set_status(user_id, "youtube", f"Connection error: {str(exc)[:180]}")
+            await self._youtube_channel_status(channel_id, user_id, f"Connection error: {str(exc)[:180]}")
 
 
 chat_hub = ChatHub()

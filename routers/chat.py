@@ -143,6 +143,39 @@ async def connect_google_chat(request: Request):
     )
 
 
+@router.post("/chat/api/youtube/backup-connect")
+async def youtube_backup_connect(request: Request):
+    """Queue a one-time API discovery fallback after automatic live detection."""
+    user = _user(request)
+    if user is None:
+        return JSONResponse({"error": "Authentication required"}, status_code=401)
+
+    db = SessionLocal()
+    try:
+        connection = db.query(ChatConnection).filter_by(
+            user_id=user.id, platform="youtube"
+        ).first()
+        if connection is None:
+            return JSONResponse(
+                {"error": "Connect a YouTube account first."}, status_code=400
+            )
+        channel_id = str(connection.platform_user_id or "")
+        if not channel_id:
+            return JSONResponse(
+                {"error": "The connected YouTube account is missing its channel ID."},
+                status_code=400,
+            )
+    finally:
+        db.close()
+
+    await chat_hub.start_for_user(user.id)
+    chat_hub.request_youtube_backup_connect(channel_id)
+    return JSONResponse({
+        "ok": True,
+        "message": "Backup check queued. Automatic live detection remains active.",
+    })
+
+
 @router.get("/chat/connect/twitch")
 async def connect_twitch_chat(request: Request):
     user = _user(request)
@@ -174,10 +207,7 @@ async def disconnect_chat(request: Request, platform: str):
             db.commit()
     finally:
         db.close()
-    task = chat_hub.tasks.get((user.id, platform))
-    if task and not task.done():
-        task.cancel()
-    await chat_hub.set_status(user.id, platform, "Not connected")
+    await chat_hub.stop_for_user_platform(user.id, platform)
     return RedirectResponse("/chat", status_code=303)
 
 
@@ -440,13 +470,20 @@ async def chat_websocket(websocket: WebSocket):
     if not user_id:
         await websocket.close(code=4401)
         return
-    await chat_hub.attach(int(user_id), websocket)
+    db = SessionLocal()
+    try:
+        snapshot_limit = _appearance(db, int(user_id)).get("maxMessages", 30)
+    finally:
+        db.close()
+    await chat_hub.attach(int(user_id), websocket, snapshot_limit=snapshot_limit)
     try:
         while True:
             incoming = await websocket.receive_text()
             if incoming == "ping":
                 await websocket.send_json({"type": "pong"})
     except WebSocketDisconnect:
+        pass
+    finally:
         chat_hub.detach(int(user_id), websocket)
 
 
@@ -476,14 +513,19 @@ async def chat_overlay_websocket(websocket: WebSocket, token: str):
     try:
         row = db.query(ChatOverlayToken).filter_by(token=token).first()
         user_id = row.user_id if row else None
+        snapshot_limit = _appearance(db, user_id).get("maxMessages", 30) if user_id is not None else 30
     finally:
         db.close()
     if user_id is None:
         await websocket.close(code=4404)
         return
-    await chat_hub.attach(user_id, websocket)
+    await chat_hub.attach(user_id, websocket, snapshot_limit=snapshot_limit)
     try:
         while True:
-            await websocket.receive_text()
+            incoming = await websocket.receive_text()
+            if incoming == "ping":
+                await websocket.send_json({"type": "pong"})
     except WebSocketDisconnect:
+        pass
+    finally:
         chat_hub.detach(user_id, websocket)

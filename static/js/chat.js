@@ -7,7 +7,7 @@
     const seen = new Set();
     const messageNodes = new Map();
     const SEEN_LIMIT = 600;
-    const defaults = {theme:'transparent',fontSize:16,fontFamily:'Arial, sans-serif',backgroundColor:'#111820',backgroundOpacity:78,textColor:'#f3f5f7',usernameColor:'#ffffff',twitchColor:'#9146ff',youtubeColor:'#e62117',showPlatform:true,showTimestamp:true,showUsername:true,showBadges:true,maxMessages:30,messageSpacing:7,messageRadius:8};
+    const defaults = {theme:'transparent',fontSize:16,fontFamily:'Arial, sans-serif',backgroundColor:'#111820',backgroundOpacity:78,textColor:'#f3f5f7',usernameColor:'#ffffff',twitchColor:'#9146ff',youtubeColor:'#e62117',showPlatform:true,showTimestamp:true,showUsername:true,showBadges:true,messageSpacing:7,messageRadius:8};
     let appearance = {...defaults};
     let activeView = 'all';
     let sendTarget = 'all';
@@ -107,10 +107,38 @@
     }
 
     function loadPinned() {
-        try { const value = JSON.parse(localStorage.getItem('llamaqueue-pinned-chatters') || '[]'); return Array.isArray(value) ? value.slice(0, 20) : []; }
+        try { const value = JSON.parse(localStorage.getItem('llamaqueue-pinned-chatters') || '[]'); return Array.isArray(value) ? value.filter(item => !(item?.autoPinned && !item?.manualPinned && !Array.isArray(item?.autoPinTriggers))).slice(0, 20) : []; }
         catch (_) { return []; }
     }
     function savePinned() { localStorage.setItem('llamaqueue-pinned-chatters', JSON.stringify(pinned)); }
+
+    const RETAINED_HISTORY_LIMIT = 300;
+    function expireAutomaticPinTrigger(message) {
+        const triggerId = String(message?.id || '');
+        if (!triggerId) return;
+        const key = chatterKey(message.platform, message.user_id, message.username);
+        const person = pinned.find(item => item.key === key);
+        if (!person) return;
+        const triggers = Array.isArray(person.autoPinTriggers) ? person.autoPinTriggers : [];
+        person.autoPinTriggers = triggers.filter(id => String(id) !== triggerId);
+        if (!person.autoPinTriggers.length) {
+            if (person.manualPinned || !person.autoPinned) {
+                // A manual pin survives; only its temporary creator-mention
+                // highlight is cleared when the triggering message expires.
+                person.mentioned = false;
+            } else {
+                const index = pinned.findIndex(item => item.key === key);
+                if (index >= 0) pinned.splice(index, 1);
+                if (activeView === `pinned:${key}`) activeView = 'all';
+            }
+            savePinned();
+            renderPinnedTabs();
+            refreshPinButtons();
+            updateVisibility();
+        } else {
+            savePinned();
+        }
+    }
     function refreshPinButtons() {
         list.querySelectorAll('.chat-message').forEach(row => {
             const button = row.querySelector('.chat-pin-chatter');
@@ -164,7 +192,7 @@
             if (activeView.startsWith('pinned:')) visible = row.dataset.userKey === activeView.slice(7);
             row.hidden = !visible || isFilteredBot(row.dataset.username);
         });
-        if (count) count.textContent = `${list.querySelectorAll('.chat-message:not([hidden])').length} visible · ${total} received this session`;
+        if (count) count.textContent = `${list.querySelectorAll('.chat-message:not([hidden])').length} in scrollback · ${total} received this session`;
     }
     function setSendTarget(target) {
         sendTarget = target;
@@ -197,8 +225,10 @@
         const row = document.createElement('article');
         row.className = 'chat-message'; row.dataset.platform = message.platform;
         row.dataset.userKey = chatterKey(message.platform, message.user_id, message.username);
+        row.dataset.userId = String(message.user_id || '');
         row.dataset.isBot = isBot ? '1' : '0';
         row.dataset.username = String(message.username || '');
+        row.dataset.userId = String(message.user_id || '');
         row.dataset.messageId = id;
         const badge = document.createElement('span');
         badge.className = `chat-message-platform ${message.platform}`;
@@ -294,8 +324,19 @@
         if (creatorMention) {
             row.classList.add('chat-message-mentioned');
             const existing = pinned.find(item => item.key === person.key);
-            if (existing) existing.mentioned = true;
-            else { if (pinned.length >= 20) pinned.shift(); pinned.push({...person, mentioned:true, autoPinned:true}); }
+            const triggerId = String(message.id || `${message.platform}:${message.username}:${message.timestamp}`);
+            if (existing) {
+                existing.mentioned = true;
+                // A manual pin remains manual; the auto trigger is tracked only
+                // so its mention highlight can expire independently.
+                existing.autoPinTriggers = [...new Set([...(existing.autoPinTriggers || []), triggerId])];
+            } else {
+                if (pinned.length >= 20) {
+                    const removable = pinned.findIndex(item => item.autoPinned && !item.manualPinned);
+                    pinned.splice(removable >= 0 ? removable : 0, 1);
+                }
+                pinned.push({...person, mentioned:true, autoPinned:true, manualPinned:false, autoPinTriggers:[triggerId]});
+            }
             savePinned(); renderPinnedTabs(); refreshPinButtons();
         }
         const isPinned = () => pinned.some(item => item.key === person.key);
@@ -303,7 +344,15 @@
         pin.setAttribute('aria-pressed', String(isPinned()));
         pin.addEventListener('click', () => {
             const index = pinned.findIndex(item => item.key === person.key);
-            if (index >= 0) pinned.splice(index, 1); else { if (pinned.length >= 20) pinned.shift(); pinned.push(person); }
+            if (index >= 0) {
+                pinned.splice(index, 1);
+            } else {
+                if (pinned.length >= 20) {
+                    const removable = pinned.findIndex(item => item.autoPinned && !item.manualPinned);
+                    pinned.splice(removable >= 0 ? removable : 0, 1);
+                }
+                pinned.push({...person, manualPinned:true, autoPinned:false, autoPinTriggers:[]});
+            }
             savePinned(); renderPinnedTabs(); refreshPinButtons();
         });
         actions.append(pin);
@@ -344,10 +393,17 @@
             actions.append(del);
         }
         content.append(actions); row.append(badge, content); list.append(row); messageNodes.set(key, row);
-        // Keep the live dashboard/Omni DOM small and predictable during long streams.
-        while (list.querySelectorAll('.chat-message').length > appearance.maxMessages) {
+        // Retain 300 messages for scrollback. The visible viewport is controlled
+        // by the chat panel height, not by a destructive 30-message DOM limit.
+        while (list.querySelectorAll('.chat-message').length > RETAINED_HISTORY_LIMIT) {
             const oldest = list.querySelector('.chat-message');
             if (!oldest) break;
+            expireAutomaticPinTrigger({
+                id: oldest.dataset.messageId,
+                platform: oldest.dataset.platform,
+                user_id: oldest.dataset.userId || null,
+                username: oldest.dataset.username || ''
+            });
             messageNodes.delete(`${oldest.dataset.platform}:${oldest.dataset.messageId}`);
             oldest.remove();
         }
@@ -401,6 +457,29 @@
         if (label) label.textContent = status;
         if (dot) { dot.classList.toggle('connected',status.toLowerCase().includes('connected') && !status.toLowerCase().includes('error')); dot.classList.toggle('error',status.toLowerCase().includes('error') || status.toLowerCase().includes('failed')); }
     }
+
+    const youtubeBackupButton = document.getElementById('youtube-backup-connect');
+    youtubeBackupButton?.addEventListener('click', async () => {
+        youtubeBackupButton.disabled = true;
+        const originalLabel = youtubeBackupButton.textContent;
+        youtubeBackupButton.textContent = 'Checking…';
+        setStatus('youtube', 'Manual backup check requested…');
+        try {
+            const response = await fetch('/chat/api/youtube/backup-connect', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: '{}'
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Backup connection check failed');
+            setStatus('youtube', result.message || 'Backup check queued…');
+        } catch (error) {
+            setStatus('youtube', `Backup check failed: ${error.message}`);
+        } finally {
+            youtubeBackupButton.textContent = originalLabel;
+            youtubeBackupButton.disabled = false;
+        }
+    });
 
     const copyButton = document.getElementById('copy-overlay-url');
     copyButton?.addEventListener('click', async () => {
