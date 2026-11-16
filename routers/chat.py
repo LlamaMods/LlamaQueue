@@ -199,6 +199,12 @@ async def disconnect_chat(request: Request, platform: str):
         return RedirectResponse("/", status_code=303)
     if platform not in ("twitch", "youtube"):
         return JSONResponse({"error": "Unknown platform"}, status_code=400)
+    # Stop the runtime worker while its connection row is still available.
+    # The YouTube ChatHub method uses that row to identify the shared channel
+    # and remove only this user's subscription before deciding whether the
+    # shared worker can be stopped.
+    await chat_hub.stop_for_user_platform(user.id, platform)
+
     db = SessionLocal()
     try:
         row = db.query(ChatConnection).filter_by(user_id=user.id, platform=platform).first()
@@ -207,7 +213,6 @@ async def disconnect_chat(request: Request, platform: str):
             db.commit()
     finally:
         db.close()
-    await chat_hub.stop_for_user_platform(user.id, platform)
     return RedirectResponse("/chat", status_code=303)
 
 

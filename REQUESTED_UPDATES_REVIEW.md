@@ -33,3 +33,4 @@ Deployment note: Render is the live deployment target/branch for this project. T
 
 ## Disconnect ChatHub fix
 - Added `ChatHub.stop_for_user_platform()` used by the disconnect route. Twitch workers are cancelled per user. Shared YouTube workers remove only the disconnecting subscriber and are cancelled only when the channel has no remaining subscribers.
+- Corrected disconnect ordering: the runtime stop method now runs before the `ChatConnection` row is deleted, because the shared YouTube worker logic reads that row to identify the channel. The database row is deleted only after the runtime stop completes.
