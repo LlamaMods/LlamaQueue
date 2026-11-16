@@ -29,3 +29,7 @@ This patch is based on the uploaded `LlamaQueue-Connected-Account-Chat-Sending-F
 The YouTube connection card now includes a **Backup connect** button for an already-linked YouTube account. It queues exactly one explicit `liveBroadcasts.list` discovery attempt for that channel. It does not start a repeating API poll. Automatic public `/live` detection remains active before and after the manual check. If the API quota is exhausted or no live chat is found, the worker stays alive and reports the outcome instead of terminating.
 
 Deployment note: Render is the live deployment target/branch for this project. This patch is intended for that live codebase; it is not a separate staging-only implementation.
+
+
+## Disconnect ChatHub fix
+- Added `ChatHub.stop_for_user_platform()` used by the disconnect route. Twitch workers are cancelled per user. Shared YouTube workers remove only the disconnecting subscriber and are cancelled only when the channel has no remaining subscribers.

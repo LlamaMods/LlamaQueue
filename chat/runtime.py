@@ -143,6 +143,60 @@ class ChatHub:
                     self._twitch_worker(user_id, config), name=f"chat-twitch-{user_id}"
                 )
 
+    async def stop_for_user_platform(self, user_id: int, platform: str):
+        """Stop one user's platform connection without disrupting shared channels."""
+        if platform not in {"twitch", "youtube"}:
+            return
+
+        key = (user_id, platform)
+        task = self.tasks.pop(key, None)
+
+        if platform == "youtube":
+            # A YouTube worker is shared by every LlamaQueue user connected to
+            # the same channel. Remove only this subscriber; stop the worker
+            # only when nobody else is using that channel.
+            db = SessionLocal()
+            try:
+                row = db.query(ChatConnection).filter_by(
+                    user_id=user_id, platform="youtube"
+                ).first()
+                channel_id = str(row.platform_user_id or "") if row else ""
+            finally:
+                db.close()
+
+            if channel_id:
+                subscribers = self.youtube_channel_subscribers.get(channel_id)
+                if subscribers is not None:
+                    subscribers.discard(user_id)
+                    if not subscribers:
+                        self.youtube_channel_subscribers.pop(channel_id, None)
+                        channel_task = self.youtube_channel_tasks.pop(channel_id, None)
+                        if channel_task and not channel_task.done():
+                            channel_task.cancel()
+                            try:
+                                await channel_task
+                            except asyncio.CancelledError:
+                                pass
+                        self.youtube_backup_connect_requests.discard(channel_id)
+            # If the user was the last subscriber, task is the same shared
+            # channel task and has already been cancelled above.
+            elif task and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+            self.youtube_live_chat_ids.pop(user_id, None)
+            self._youtube_lookup_blocked_video.pop(user_id, None)
+        elif task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        await self.set_status(user_id, platform, "Not connected")
+
     def _record_identity(self, user_id: int, platform: str, platform_user_id: str | None,
                          username: str | None, is_member: bool, subscription_key: str | None = None,
                          tenure_months: int | None = None, preserve_unknown_tier: bool = False):
