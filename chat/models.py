@@ -94,3 +94,17 @@ class AppearancePreset(Base):
     name: Mapped[str] = mapped_column(String(80), nullable=False, default="")
     settings_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ChatResumeCursor(Base):
+    """Durable YouTube Live Chat stream cursor for interruption recovery."""
+    __tablename__ = "chat_resume_cursors"
+    __table_args__ = (
+        UniqueConstraint("user_id", "live_chat_id", name="uq_chat_resume_user_live_chat"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    live_chat_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    page_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
