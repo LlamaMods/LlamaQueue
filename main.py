@@ -1,5 +1,8 @@
 import os
 import json
+import logging
+import secrets
+from contextlib import asynccontextmanager
 from datetime import datetime
 
 from dotenv import load_dotenv
@@ -25,13 +28,14 @@ from database.session import Base, engine, SessionLocal
 from database.session import SessionLocal
 from services.user_resolver import get_creator_from_nightbot
 from services.priority_service import PriorityService
-from chat.models import QueueEntryPriority, QueuePrioritySettings, AppearancePreset
+from chat.models import QueueEntryPriority, QueuePrioritySettings, AppearancePreset, ChatConnection
 from urllib.parse import parse_qs
 
 from services.history_service import HistoryService
 from services.moderator_service import ModeratorService
 from routers.auth import router as auth_router
 from routers.chat import router as chat_router
+from chat.runtime import chat_hub
 
 from services.command_service import CommandService
 from services.nightbot_service import NightbotService
@@ -40,9 +44,45 @@ from services.registration_service import RegistrationService
 from services.settings_service import SettingsService
 from typing import List
 from bot import LlamaBot
+from legal_policy import (PRIVACY_POLICY_VERSION, TERMS_VERSION, user_has_current_acceptance, save_acceptance)
+from chat.security import decrypt_token, encrypt_token
+from services.oauth_revocation import revoke_oauth_token
 
-app = FastAPI()
+logger = logging.getLogger(__name__)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Chat reception belongs to the server process, not to dashboard/OBS clients.
+    await chat_hub.start_all_connected_users()
+    try:
+        yield
+    finally:
+        await chat_hub.shutdown()
+
+
+app = FastAPI(lifespan=lifespan)
+
+@app.middleware("http")
+async def require_current_legal_acceptance(request: Request, call_next):
+    path = request.url.path
+    public_paths = ("/legal/", "/privacy", "/terms", "/data-deletion", "/static/")
+    oauth_callbacks = ("/auth/callback/google", "/auth/twitch/callback", "/auth/nightbot/callback")
+    if path.startswith(public_paths) or path in oauth_callbacks or path == "/auth/logout":
+        return await call_next(request)
+    user_id = request.session.get("user_id")
+    if user_id:
+        db = SessionLocal()
+        try:
+            accepted = user_has_current_acceptance(db, int(user_id))
+        finally:
+            db.close()
+        if not accepted:
+            return RedirectResponse("/legal/consent", status_code=303)
+    return await call_next(request)
+
+
+# Install SessionMiddleware after the custom middleware so signed session data
+# is available to the legal-acceptance gate.
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET"),
@@ -53,6 +93,38 @@ app.include_router(auth_router)
 app.include_router(chat_router)
 
 Base.metadata.create_all(bind=engine)
+
+
+def _encrypt_legacy_nightbot_tokens():
+    """Encrypt pre-existing Nightbot credentials once, preserving old values if already encrypted."""
+    db = SessionLocal()
+    try:
+        users = db.query(User).filter(
+            (User.nightbot_access_token.isnot(None)) | (User.nightbot_refresh_token.isnot(None))
+        ).all()
+        changed = False
+        for user in users:
+            for field in ("nightbot_access_token", "nightbot_refresh_token"):
+                value = getattr(user, field)
+                if not value:
+                    continue
+                try:
+                    decrypt_token(value)
+                except Exception:
+                    encrypted = encrypt_token(value)
+                    if encrypted:
+                        setattr(user, field, encrypted)
+                        changed = True
+        if changed:
+            db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Could not migrate legacy Nightbot credentials to encrypted storage")
+    finally:
+        db.close()
+
+
+_encrypt_legacy_nightbot_tokens()
 
 
 app.mount(
@@ -115,6 +187,129 @@ templates = Jinja2Templates(
     directory="templates",
     context_processors=[template_context],
 )
+
+
+def _legal_template(request: Request, name: str, **context):
+    return templates.TemplateResponse(
+        request=request, name=name, context={"request": request, **context}
+    )
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy_policy(request: Request):
+    return _legal_template(request, "legal/privacy.html", title="Privacy Policy · LlamaQueue")
+
+
+@app.get("/terms", response_class=HTMLResponse)
+def terms_of_service(request: Request):
+    return _legal_template(request, "legal/terms.html", title="Terms of Service · LlamaQueue")
+
+
+@app.get("/legal/consent", response_class=HTMLResponse)
+def legal_consent(request: Request, next: str = "/"):
+    safe_next = next if next.startswith("/") and not next.startswith("//") else "/"
+    return _legal_template(
+        request, "legal/consent.html", title="Review LlamaQueue Policies",
+        next_url=safe_next, error=None,
+    )
+
+
+@app.post("/legal/accept")
+def accept_legal_terms(
+    request: Request,
+    accepted: str = Form(default=""),
+    next_url: str = Form(default="/"),
+):
+    if accepted != "yes":
+        safe_next = next_url if next_url.startswith("/") and not next_url.startswith("//") else "/"
+        return _legal_template(
+            request, "legal/consent.html", title="Review LlamaQueue Policies",
+            next_url=safe_next, error="Please confirm that you have read and agree to both policies.",
+        )
+    request.session["legal_privacy_version"] = PRIVACY_POLICY_VERSION
+    request.session["legal_terms_version"] = TERMS_VERSION
+    request.session["legal_accepted_at"] = datetime.utcnow().isoformat()
+    user_id = request.session.get("user_id")
+    if user_id:
+        db = SessionLocal()
+        try:
+            save_acceptance(db, int(user_id), request)
+            db.commit()
+        finally:
+            db.close()
+    safe_next = next_url if next_url.startswith("/") and not next_url.startswith("//") else "/"
+    return RedirectResponse(safe_next, status_code=303)
+
+
+@app.get("/data-deletion", response_class=HTMLResponse)
+def data_deletion_page(request: Request):
+    user = get_current_user(request)
+    if user and not request.session.get("delete_account_nonce"):
+        request.session["delete_account_nonce"] = secrets.token_urlsafe(32)
+    return _legal_template(
+        request, "legal/data_deletion.html", title="Data Deletion · LlamaQueue",
+        current_user=user, csrf_token=request.session.get("delete_account_nonce"), error=None,
+    )
+
+
+@app.post("/data-deletion", response_class=HTMLResponse)
+async def delete_account(
+    request: Request,
+    confirmation: str = Form(default=""),
+    csrf_token: str = Form(default=""),
+):
+    user = get_current_user(request)
+    expected = request.session.get("delete_account_nonce")
+    if user is None:
+        return RedirectResponse("/", status_code=303)
+    if not expected or not secrets.compare_digest(expected, csrf_token):
+        return _legal_template(request, "legal/data_deletion.html", title="Data Deletion · LlamaQueue",
+                               current_user=user, csrf_token=expected, error="The form expired. Reload this page and try again.")
+    if confirmation.strip() != "DELETE MY ACCOUNT":
+        return _legal_template(request, "legal/data_deletion.html", title="Data Deletion · LlamaQueue",
+                               current_user=user, csrf_token=expected, error="Type DELETE MY ACCOUNT exactly to confirm.")
+
+    db = SessionLocal()
+    try:
+        db_user = db.query(User).filter(User.id == user.id).first()
+        if db_user is None:
+            request.session.clear()
+            return RedirectResponse("/", status_code=303)
+        connections = db.query(ChatConnection).filter_by(user_id=db_user.id).all()
+        tokens_to_revoke = []
+        for connection in connections:
+            try:
+                revoke_value = (
+                    decrypt_token(connection.refresh_token) or decrypt_token(connection.access_token)
+                    if connection.platform == "youtube" and connection.refresh_token
+                    else decrypt_token(connection.access_token)
+                )
+                tokens_to_revoke.append((connection.platform, revoke_value))
+            except Exception:
+                logger.warning("Could not decrypt %s token during account deletion", connection.platform)
+            await chat_hub.stop_for_user_platform(db_user.id, connection.platform)
+        for platform, token in tokens_to_revoke:
+            revoke_oauth_token(platform, token)
+        await chat_hub.forget_user(db_user.id)
+
+        # Delete all direct user-owned rows in FK-safe reverse dependency order.
+        # Lobby history is left to the ORM relationship cascade so its player rows are removed too.
+        for table in reversed(Base.metadata.sorted_tables):
+            if table.name in {"users", "lobby_history"} or "user_id" not in table.c:
+                continue
+            db.execute(table.delete().where(table.c.user_id == db_user.id))
+        db.delete(db_user)
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Account deletion failed")
+        return _legal_template(request, "legal/data_deletion.html", title="Data Deletion · LlamaQueue",
+                               current_user=user, csrf_token=expected, error="Deletion could not be completed. Please contact Rjmortii@gmail.com.")
+    finally:
+        db.close()
+    request.session.clear()
+    return _legal_template(request, "legal/deleted.html", title="Account Deleted · LlamaQueue")
+
 
 # -------------------------
 # Dashboard

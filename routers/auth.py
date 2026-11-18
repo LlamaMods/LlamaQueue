@@ -12,6 +12,7 @@ from auth.nightbot import oauth as nightbot_oauth
 from database.models import User, Community
 from chat.models import ChatConnection
 from chat.security import encrypt_token
+from legal_policy import session_has_current_acceptance, save_acceptance
 from database.session import SessionLocal
 
 router = APIRouter(
@@ -22,6 +23,8 @@ router = APIRouter(
 
 @router.get("/login/google")
 async def login_google(request: Request):
+    if not session_has_current_acceptance(request):
+        return RedirectResponse("/legal/consent?next=/auth/login/google", status_code=303)
     return await google_oauth.google.authorize_redirect(
         request,
         request.url_for("auth_callback"),
@@ -30,6 +33,8 @@ async def login_google(request: Request):
 
 @router.get("/login/twitch")
 async def login_twitch(request: Request):
+    if not session_has_current_acceptance(request):
+        return RedirectResponse("/legal/consent?next=/auth/login/twitch", status_code=303)
     return await twitch_oauth.twitch.authorize_redirect(
         request,
         request.url_for("twitch_callback"),
@@ -37,6 +42,8 @@ async def login_twitch(request: Request):
 
 @router.get("/login/nightbot")
 async def login_nightbot(request: Request):
+    if not session_has_current_acceptance(request):
+        return RedirectResponse("/legal/consent?next=/auth/login/nightbot", status_code=303)
     redirect_uri = str(request.url_for("nightbot_callback"))
 
     return await nightbot_oauth.nightbot.authorize_redirect(
@@ -77,6 +84,8 @@ def _save_chat_connection(db: Session, user_id: int, platform: str, token: dict,
 
 @router.get("/twitch/callback", name="twitch_callback")
 async def twitch_callback(request: Request):
+    if not session_has_current_acceptance(request):
+        return RedirectResponse("/legal/consent", status_code=303)
     token = await twitch_oauth.twitch.authorize_access_token(request)
 
     response = await twitch_oauth.twitch.get(
@@ -127,6 +136,8 @@ async def twitch_callback(request: Request):
 
     db.commit()
     db.refresh(existing_user)
+    save_acceptance(db, existing_user.id, request)
+    db.commit()
 
     community = (
         db.query(Community)
@@ -169,6 +180,8 @@ async def twitch_callback(request: Request):
 
 @router.get("/nightbot/callback", name="nightbot_callback")
 async def nightbot_callback(request: Request):
+    if not session_has_current_acceptance(request):
+        return RedirectResponse("/legal/consent", status_code=303)
     token = await nightbot_oauth.nightbot.authorize_access_token(request)
 
     response = await nightbot_oauth.nightbot.get(
@@ -205,9 +218,11 @@ async def nightbot_callback(request: Request):
     existing_user.nightbot_display_name = channel["displayName"]
     existing_user.nightbot_avatar = channel["avatar"]
 
-    existing_user.nightbot_access_token = token.get("access_token")
-    existing_user.nightbot_refresh_token = token.get("refresh_token")
+    existing_user.nightbot_access_token = encrypt_token(token.get("access_token"))
+    existing_user.nightbot_refresh_token = encrypt_token(token.get("refresh_token"))
 
+    db.commit()
+    save_acceptance(db, existing_user.id, request)
     db.commit()
 
     request.session["user_id"] = existing_user.id
@@ -227,6 +242,8 @@ async def nightbot_callback(request: Request):
 
 @router.get("/callback/google", name="auth_callback")
 async def auth_callback(request: Request):
+    if not session_has_current_acceptance(request):
+        return RedirectResponse("/legal/consent", status_code=303)
     token = await google_oauth.google.authorize_access_token(request)
 
     user = token["userinfo"]
@@ -303,6 +320,8 @@ async def auth_callback(request: Request):
 
     db.commit()
     db.refresh(existing_user)
+    save_acceptance(db, existing_user.id, request)
+    db.commit()
 
     community = (
         db.query(Community)

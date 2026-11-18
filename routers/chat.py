@@ -9,13 +9,15 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from auth.dependencies import get_current_user
-from chat.models import ChatConnection, ChatOverlayToken, ChatAppearance
+from chat.models import ChatConnection, ChatOverlayToken, ChatAppearance, ChatIdentity, ChatResumeCursor
 from chat.runtime import chat_hub
 from chat.security import decrypt_token
 from auth.google import oauth as google_oauth
 from auth.twitch import oauth as twitch_oauth
-from database.models import CreatorSettings, UserAppearance
+from database.models import CreatorSettings, UserAppearance, LegalAcceptance
 from database.session import SessionLocal
+from services.oauth_revocation import revoke_oauth_token
+from legal_policy import PRIVACY_POLICY_VERSION, TERMS_VERSION
 
 router = APIRouter(tags=["Unified Chat"])
 templates = Jinja2Templates(directory="templates")
@@ -200,17 +202,28 @@ async def disconnect_chat(request: Request, platform: str):
     if platform not in ("twitch", "youtube"):
         return JSONResponse({"error": "Unknown platform"}, status_code=400)
     # Stop the runtime worker while its connection row is still available.
-    # The YouTube ChatHub method uses that row to identify the shared channel
-    # and remove only this user's subscription before deciding whether the
-    # shared worker can be stopped.
+    # YouTube workers are shared per channel, so this removes only this user.
     await chat_hub.stop_for_user_platform(user.id, platform)
 
     db = SessionLocal()
     try:
         row = db.query(ChatConnection).filter_by(user_id=user.id, platform=platform).first()
         if row:
+            try:
+                revoke_value = (
+                    decrypt_token(row.refresh_token) or decrypt_token(row.access_token)
+                    if platform == "youtube" and row.refresh_token
+                    else decrypt_token(row.access_token)
+                )
+                revoke_oauth_token(platform, revoke_value)
+            except Exception:
+                pass
             db.delete(row)
-            db.commit()
+        # Platform-derived identity and resume data are no longer needed after disconnect.
+        db.query(ChatIdentity).filter_by(user_id=user.id, platform=platform).delete(synchronize_session=False)
+        if platform == "youtube":
+            db.query(ChatResumeCursor).filter_by(user_id=user.id).delete(synchronize_session=False)
+        db.commit()
     finally:
         db.close()
     return RedirectResponse("/chat", status_code=303)
@@ -477,6 +490,10 @@ async def chat_websocket(websocket: WebSocket):
         return
     db = SessionLocal()
     try:
+        acceptance = db.query(LegalAcceptance).filter_by(user_id=int(user_id)).first()
+        if not acceptance or acceptance.privacy_version != PRIVACY_POLICY_VERSION or acceptance.terms_version != TERMS_VERSION:
+            await websocket.close(code=4403, reason="Current LlamaQueue policies must be accepted")
+            return
         snapshot_limit = _appearance(db, int(user_id)).get("maxMessages", 30)
     finally:
         db.close()
@@ -500,6 +517,9 @@ async def chat_overlay(request: Request, token: str):
         if row is None:
             return HTMLResponse("Invalid LlamaQueue chat overlay URL.", status_code=404)
         user_id = row.user_id
+        acceptance = db.query(LegalAcceptance).filter_by(user_id=user_id).first()
+        if not acceptance or acceptance.privacy_version != PRIVACY_POLICY_VERSION or acceptance.terms_version != TERMS_VERSION:
+            return HTMLResponse("The account owner must review the current LlamaQueue policies before this overlay can be used.", status_code=403)
         appearance = _appearance(db, user_id)
     finally:
         db.close()
@@ -518,6 +538,9 @@ async def chat_overlay_websocket(websocket: WebSocket, token: str):
     try:
         row = db.query(ChatOverlayToken).filter_by(token=token).first()
         user_id = row.user_id if row else None
+        acceptance = db.query(LegalAcceptance).filter_by(user_id=user_id).first() if user_id is not None else None
+        if not acceptance or acceptance.privacy_version != PRIVACY_POLICY_VERSION or acceptance.terms_version != TERMS_VERSION:
+            user_id = None
         snapshot_limit = _appearance(db, user_id).get("maxMessages", 30) if user_id is not None else 30
     finally:
         db.close()

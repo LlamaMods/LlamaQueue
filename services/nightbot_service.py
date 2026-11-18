@@ -1,6 +1,7 @@
 import requests
 
 from database.models import User
+from chat.security import decrypt_token
 
 
 class NightbotService:
@@ -11,20 +12,20 @@ class NightbotService:
 
     @property
     def headers(self):
-        return {
-            "Authorization": f"Bearer {self.user.nightbot_access_token}"
-        }
+        token = self.user.nightbot_access_token
+        if token:
+            try:
+                token = decrypt_token(token)
+            except RuntimeError:
+                # Temporary compatibility for credentials created before encryption.
+                pass
+        return {"Authorization": f"Bearer {token}"}
 
     def get(self, endpoint: str):
-        print("Nightbot Access Token:", self.user.nightbot_access_token)
         response = requests.get(
             f"{self.BASE_URL}/{endpoint.lstrip('/')}",
             headers=self.headers,    
         )
-        print(response.status_code)
-        print(response.text)
-
-
         response.raise_for_status()
 
         return response.json()

@@ -674,3 +674,19 @@ class UserAppearance(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+
+
+# ==========================================================
+# LEGAL POLICY ACCEPTANCE
+# ==========================================================
+
+class LegalAcceptance(Base):
+    __tablename__ = "legal_acceptances"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    privacy_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    terms_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    accepted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
