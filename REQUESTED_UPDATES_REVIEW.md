@@ -34,3 +34,12 @@ Deployment note: Render is the live deployment target/branch for this project. T
 ## Disconnect ChatHub fix
 - Added `ChatHub.stop_for_user_platform()` used by the disconnect route. Twitch workers are cancelled per user. Shared YouTube workers remove only the disconnecting subscriber and are cancelled only when the channel has no remaining subscribers.
 - Corrected disconnect ordering: the runtime stop method now runs before the `ChatConnection` row is deleted, because the shared YouTube worker logic reads that row to identify the channel. The database row is deleted only after the runtime stop completes.
+
+
+## Live viewer counts
+- Added separate Twitch and YouTube viewer labels to the existing platform cards. Counts are sent over the existing chat WebSocket and cached in its snapshot; browsers do not make platform API requests.
+- Twitch uses Helix `GET /helix/streams` once per minute from the existing Twitch worker. This is Twitch API traffic and does not consume YouTube Data API quota.
+- YouTube uses `videos.list(part="liveStreamingDetails")` once every five minutes while a live video ID is known. The method costs 1 YouTube Data API quota unit per request, so the added cost is approximately 12 units per live hour per channel per application process. No viewer-statistics requests are made while the channel is offline.
+- YouTube polling runs inside the existing shared per-channel worker, not once per connected LlamaQueue user or browser. Sharing is process-local, consistent with the existing chat worker architecture.
+- If YouTube does not expose `concurrentViewers` (for example, hidden/unavailable counts), the UI displays a dash rather than inventing zero. Offline platforms display `Viewers: Offline`.
+- The viewer-count task is cancelled when the YouTube worker detects the broadcast has ended or when the worker is stopped. Transient statistics request failures preserve the last good count and do not affect chat.

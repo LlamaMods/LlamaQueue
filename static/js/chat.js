@@ -458,6 +458,18 @@
         if (dot) { dot.classList.toggle('connected',status.toLowerCase().includes('connected') && !status.toLowerCase().includes('error')); dot.classList.toggle('error',status.toLowerCase().includes('error') || status.toLowerCase().includes('failed')); }
     }
 
+    function setViewerCount(platform, value) {
+        const label = document.getElementById(`${platform}-viewers`);
+        if (!label) return;
+        if (!value || value.live === false) {
+            label.textContent = 'Viewers: Offline';
+        } else if (value.count === null || value.count === undefined || !Number.isFinite(Number(value.count))) {
+            label.textContent = 'Viewers: —';
+        } else {
+            label.textContent = `Viewers: ${Number(value.count).toLocaleString()}`;
+        }
+    }
+
     const youtubeBackupButton = document.getElementById('youtube-backup-connect');
     youtubeBackupButton?.addEventListener('click', async () => {
         youtubeBackupButton.disabled = true;
@@ -537,9 +549,11 @@
                 } else if (data.type === 'snapshot') {
                     (data.messages || []).forEach(addMessage);
                     Object.entries(data.status || {}).forEach(([platform, status]) => setStatus(platform, status));
+                    Object.entries(data.viewer_counts || {}).forEach(([platform, value]) => setViewerCount(platform, value));
                 } else if (data.type === 'message') addMessage(data.message);
                 else if (data.type === 'message_deleted') markDeleted(data.platform, data.message_id, data.deleted_by);
                 else if (data.type === 'status') setStatus(data.platform, data.status);
+                else if (data.type === 'viewer_count') setViewerCount(data.platform, data);
             });
             activeSocket.addEventListener('close', () => {
                 if (socket !== activeSocket) return;

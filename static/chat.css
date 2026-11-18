@@ -515,3 +515,4 @@
 #llama-chat-page .chat-send-target { display:inline-flex; align-items:center; gap:6px; }
 #llama-chat-page .chat-message-platform { background:transparent !important; border-radius:0; }
 #llama-chat-page .chat-message-platform svg { display:block; width:100%; height:100%; }
+\n.chat-platform-title .chat-viewer-count{margin-top:4px;font-size:.78rem;font-weight:700;color:var(--text,#f4f7f8);}\n

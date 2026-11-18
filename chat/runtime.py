@@ -38,6 +38,9 @@ class ChatHub:
         # only when the YouTube backup-connect button is pressed.
         self.youtube_backup_connect_requests: set[str] = set()
         self.twitch_badge_cache: dict[str, dict[str, str]] = {}
+        # Latest platform viewer counts are cached per dashboard user and
+        # included in WebSocket snapshots so reconnecting browsers do not poll APIs.
+        self.viewer_counts: dict[int, dict[str, dict[str, Any]]] = {}
         self._lock = asyncio.Lock()
 
     async def publish(self, user_id: int, message: dict[str, Any]):
@@ -72,7 +75,36 @@ class ChatHub:
         await websocket.accept()
         self.clients.setdefault(user_id, set()).add(websocket)
         history = list(self.messages.get(user_id, []))
-        await websocket.send_json({"type": "snapshot", "messages": history[-max(1, min(300, int(snapshot_limit))):], "status": self.status.get(user_id, {})})
+        await websocket.send_json({
+            "type": "snapshot",
+            "messages": history[-max(1, min(300, int(snapshot_limit))):],
+            "status": self.status.get(user_id, {}),
+            "viewer_counts": self.viewer_counts.get(user_id, {}),
+        })
+
+    async def set_viewer_count(self, user_id: int, platform: str, count: int | None, live: bool):
+        value = {"count": count, "live": bool(live)}
+        self.viewer_counts.setdefault(user_id, {})[platform] = value
+        async with self._lock:
+            stale = []
+            for websocket in tuple(self.clients.get(user_id, set())):
+                try:
+                    await websocket.send_json({
+                        "type": "viewer_count",
+                        "platform": platform,
+                        **value,
+                    })
+                except Exception:
+                    stale.append(websocket)
+            for websocket in stale:
+                self.clients.get(user_id, set()).discard(websocket)
+
+    async def _youtube_channel_viewer_count(
+        self, channel_id: str, owner_user_id: int, count: int | None, live: bool
+    ):
+        subscribers = set(self.youtube_channel_subscribers.get(channel_id, {owner_user_id}))
+        for subscriber_id in subscribers:
+            await self.set_viewer_count(subscriber_id, "youtube", count, live)
 
     def detach(self, user_id: int, websocket):
         self.clients.get(user_id, set()).discard(websocket)
@@ -195,6 +227,7 @@ class ChatHub:
             except asyncio.CancelledError:
                 pass
 
+        await self.set_viewer_count(user_id, platform, None, False)
         await self.set_status(user_id, platform, "Not connected")
 
     def _record_identity(self, user_id: int, platform: str, platform_user_id: str | None,
@@ -403,6 +436,7 @@ class ChatHub:
         reconnecting = False
         retry_delay = 5
         await self.set_status(user_id, "twitch", "Connecting…")
+        await self.set_viewer_count(user_id, "twitch", None, False)
         while True:
             try:
                 token, refresh_token, expires_at = await self._refresh_twitch_token_if_needed(
@@ -456,8 +490,45 @@ class ChatHub:
                             logger.info("Twitch badge artwork unavailable for user %s", user_id)
                             self.twitch_badge_cache[badge_cache_key] = {}
 
+                    # Viewer counts use Twitch Helix independently of EventSub.
+                    # Poll once per minute; this does not consume YouTube quota.
+                    next_viewer_poll = asyncio.get_running_loop().time() + 60
                     while True:
-                        raw = await ws.recv()
+                        wait_seconds = max(0.1, next_viewer_poll - asyncio.get_running_loop().time())
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), timeout=wait_seconds)
+                        except asyncio.TimeoutError:
+                            token, refresh_token, expires_at = await self._refresh_twitch_token_if_needed(
+                                user_id, token, refresh_token, expires_at, client_id, client_secret
+                            )
+                            try:
+                                viewer_response = await asyncio.to_thread(
+                                    requests.get,
+                                    "https://api.twitch.tv/helix/streams",
+                                    headers={
+                                        "Client-ID": client_id,
+                                        "Authorization": f"Bearer {token}",
+                                    },
+                                    params={"user_id": str(config["platform_user_id"])},
+                                    timeout=15,
+                                )
+                                viewer_response.raise_for_status()
+                                live_streams = viewer_response.json().get("data", [])
+                                if live_streams:
+                                    await self.set_viewer_count(
+                                        user_id, "twitch",
+                                        int(live_streams[0].get("viewer_count", 0)), True
+                                    )
+                                else:
+                                    await self.set_viewer_count(user_id, "twitch", None, False)
+                            except Exception as viewer_error:
+                                logger.info(
+                                    "Twitch viewer count refresh failed for user %s: %s",
+                                    user_id, viewer_error
+                                )
+                            next_viewer_poll = asyncio.get_running_loop().time() + 60
+                            continue
+
                         token, refresh_token, expires_at = await self._refresh_twitch_token_if_needed(
                             user_id, token, refresh_token, expires_at, client_id, client_secret
                         )
@@ -734,11 +805,45 @@ class ChatHub:
             logger.warning("YouTube public live-page check failed for channel %s: %s", channel_id, exc)
             return None, None
 
+    async def _youtube_viewer_count_worker(
+        self, channel_id: str, owner_user_id: int, youtube, video_id: str
+    ):
+        """Fetch YouTube live viewers every five minutes while this channel is live.
+
+        videos.list costs one YouTube Data API quota unit per request. This task
+        belongs to the shared per-channel worker, not to individual dashboards.
+        """
+        while True:
+            try:
+                result = await asyncio.to_thread(
+                    lambda: youtube.videos().list(
+                        part="liveStreamingDetails", id=video_id
+                    ).execute()
+                )
+                items = result.get("items", [])
+                details = items[0].get("liveStreamingDetails", {}) if items else {}
+                raw_count = details.get("concurrentViewers")
+                count = int(raw_count) if raw_count is not None else None
+                await self._youtube_channel_viewer_count(
+                    channel_id, owner_user_id, count, True
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception as viewer_error:
+                # Preserve the last good count if a transient statistics request fails.
+                logger.info(
+                    "YouTube viewer count refresh failed for channel %s: %s",
+                    channel_id, viewer_error
+                )
+            await asyncio.sleep(300)
+
     async def _youtube_worker(self, user_id: int, config: dict, channel_id: str | None = None):
         import os
         from datetime import timedelta
 
         channel_id = str(channel_id or config.get("platform_user_id") or "")
+        viewer_count_task = None
+        viewer_count_video_id = None
         try:
             credentials = Credentials(
                 token=config["access_token"],
@@ -753,6 +858,7 @@ class ChatHub:
             previous_chat_id = None
             previous_video_id = None
             page_token = None
+            await self._youtube_channel_viewer_count(channel_id, user_id, None, False)
 
             while True:
                 if credentials.expired and credentials.refresh_token:
@@ -774,6 +880,17 @@ class ChatHub:
                         self.youtube_live_chat_ids.pop(user_id, None)
                         self._youtube_lookup_blocked_video.pop(user_id, None)
                     previous_video_id = public_video_id
+                    if viewer_count_video_id != public_video_id:
+                        if viewer_count_task and not viewer_count_task.done():
+                            viewer_count_task.cancel()
+                            await asyncio.gather(viewer_count_task, return_exceptions=True)
+                        viewer_count_video_id = public_video_id
+                        viewer_count_task = asyncio.create_task(
+                            self._youtube_viewer_count_worker(
+                                channel_id, user_id, youtube, public_video_id
+                            ),
+                            name=f"youtube-viewers-{channel_id}",
+                        )
 
                 # The manual backup button is the only path that performs a
                 # discovery lookup when public-page detection says the channel
@@ -794,14 +911,27 @@ class ChatHub:
                             for broadcast in backup_result.get("items", []):
                                 if broadcast.get("status", {}).get("lifeCycleStatus") != "live":
                                     continue
+                                backup_video_id = str(broadcast.get("id") or public_video_id or "")
+                                if backup_video_id:
+                                    if viewer_count_video_id != backup_video_id:
+                                        if viewer_count_task and not viewer_count_task.done():
+                                            viewer_count_task.cancel()
+                                            await asyncio.gather(viewer_count_task, return_exceptions=True)
+                                        viewer_count_video_id = backup_video_id
+                                        viewer_count_task = asyncio.create_task(
+                                            self._youtube_viewer_count_worker(
+                                                channel_id, user_id, youtube, backup_video_id
+                                            ),
+                                            name=f"youtube-viewers-{channel_id}",
+                                        )
+                                    previous_video_id = backup_video_id
+                                    public_video_id = backup_video_id
                                 backup_chat_id = broadcast.get("snippet", {}).get("liveChatId")
                                 if backup_chat_id:
                                     live_chat_id = backup_chat_id
                                     previous_chat_id = backup_chat_id
-                                    previous_video_id = broadcast.get("id") or public_video_id
                                     self.youtube_live_chat_ids[user_id] = backup_chat_id
                                     is_live = True
-                                    public_video_id = previous_video_id
                                     self._youtube_lookup_blocked_video.pop(user_id, None)
                                     break
                             if not is_live:
@@ -839,6 +969,12 @@ class ChatHub:
                     previous_chat_id = None
                     previous_video_id = None
                     page_token = None
+                    if viewer_count_task and not viewer_count_task.done():
+                        viewer_count_task.cancel()
+                        await asyncio.gather(viewer_count_task, return_exceptions=True)
+                    viewer_count_task = None
+                    viewer_count_video_id = None
+                    await self._youtube_channel_viewer_count(channel_id, user_id, None, False)
                     await self._youtube_channel_status(channel_id, user_id, "Connected · waiting for a live stream")
                     await asyncio.sleep(45)
                     continue
@@ -862,6 +998,26 @@ class ChatHub:
                         )
                         for broadcast in result.get("items", []):
                             if broadcast.get("status", {}).get("lifeCycleStatus") == "live":
+                                discovered_video_id = str(broadcast.get("id") or "")
+                                if discovered_video_id:
+                                    if previous_video_id and discovered_video_id != previous_video_id:
+                                        if viewer_count_task and not viewer_count_task.done():
+                                            viewer_count_task.cancel()
+                                            await asyncio.gather(viewer_count_task, return_exceptions=True)
+                                        viewer_count_task = None
+                                        viewer_count_video_id = None
+                                    previous_video_id = discovered_video_id
+                                    if viewer_count_video_id != discovered_video_id:
+                                        if viewer_count_task and not viewer_count_task.done():
+                                            viewer_count_task.cancel()
+                                            await asyncio.gather(viewer_count_task, return_exceptions=True)
+                                        viewer_count_video_id = discovered_video_id
+                                        viewer_count_task = asyncio.create_task(
+                                            self._youtube_viewer_count_worker(
+                                                channel_id, user_id, youtube, discovered_video_id
+                                            ),
+                                            name=f"youtube-viewers-{channel_id}",
+                                        )
                                 live_chat_id = broadcast.get("snippet", {}).get("liveChatId")
                                 if live_chat_id:
                                     break
@@ -1007,8 +1163,14 @@ class ChatHub:
                 await self._youtube_channel_status(channel_id, user_id, "Reconnecting…")
                 await asyncio.sleep(5)
         except asyncio.CancelledError:
+            if viewer_count_task and not viewer_count_task.done():
+                viewer_count_task.cancel()
+                await asyncio.gather(viewer_count_task, return_exceptions=True)
             raise
         except Exception as exc:
+            if viewer_count_task and not viewer_count_task.done():
+                viewer_count_task.cancel()
+                await asyncio.gather(viewer_count_task, return_exceptions=True)
             logger.exception("YouTube chat worker stopped for user %s", user_id)
             await self._youtube_channel_status(channel_id, user_id, f"Connection error: {str(exc)[:180]}")
 
